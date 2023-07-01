@@ -1,15 +1,17 @@
 import os
 from utils import *
 import argparse
+from dataloaders import MolDataModule
 
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--smiles', type=str, default='zinc250k.smi')
+    parser.add_argument('--tokenizer', type=str, default='selfies')
+    args = parser.parse_args()
+    print('Preprocessing..')
+    tokenizer = choose_tokenizer(args.tokenizer)
+    dm = MolDataModule(1024, args.tokens, tokenizer)
 
-if os.path.exists('dm.pkl'):
-    os.remove('dm.pkl')
-
-parser = argparse.ArgumentParser()
-parser.add_argument('--smiles', type=str, default='zinc250k.smi')
-args = parser.parse_args()
-print('Preprocessing..')
-dm = MolDataModule(1024, args.smiles)
-pickle.dump(dm, open('dm.pkl', 'wb'))
-print('Done!')
+    dm_path = f"dm_{args.tokenizer}.pkl"
+    pickle.dump(dm, open(dm_path, 'wb'))
+    print('Done!')

@@ -1,0 +1,8 @@
+ligands/*
+logs/*
+outs/*
+
+*.pyc
+property_models/*
+*.pt
+.DS_Store
