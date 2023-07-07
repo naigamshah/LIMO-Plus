@@ -1,8 +1,7 @@
-ligands/*
-logs/*
-outs/*
+temp/*
+saved_models/*
+gen_mols/*
 
 *.pyc
-property_models/*
-*.pt
 .DS_Store
+.ipynb_checkpoints
