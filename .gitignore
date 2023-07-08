@@ -2,6 +2,9 @@ temp/*
 saved_models/*
 gen_mols/*
 
+data/USPTO_FULL.csv
+data/USPTO_MIT.csv
+
 *.pyc
 .DS_Store
 .ipynb_checkpoints

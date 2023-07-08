@@ -34,9 +34,9 @@ def readFragmentScores(name='fpscores'):
     import gzip
     global _fscores
     # generate the full path filename:
-    if name == "fpscores":
-        name = op.join(op.dirname(__file__), name)
-    data = pickle.load(gzip.open('%s.pkl.gz' % name))
+    # if name == "fpscores":
+    #     name = op.join(op.dirname(__file__), name)
+    data = pickle.load(gzip.open(f'saved_models/{name}.pkl.gz'))
     outDict = {}
     for i in data:
         for j in range(1, len(i)):

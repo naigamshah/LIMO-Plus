@@ -46,6 +46,18 @@ def extract_groups_from_zinc():
     grammar = GroupGrammar(vocab=vocab_fragment)
     grammar.to_file('tokens/zinc_gs_grammar.txt')
 
+
+def um_gs_tokenize_zinc():
+    tokenizer = GroupSelfiesTokenizer("tokens/um_gs_grammar.txt")
+    smiles = [line.split()[0] for line in open("tokens/zinc250k.smi", 'r')]
+    # pool = multiprocessing.Pool(processes=8)
+    # parallelized = pool.map(tokenizer.encoder, smiles)
+    # selfies = [x for x in tqdm(parallelized) if x]
+    selfies = [tokenizer.encoder(smile) for smile in tqdm.tqdm(smiles)]
+    with open("tokens/umgs_zinc_selfies.txt", "w") as f:
+        for selfie in selfies:
+            f.write(f"{selfie}\n") 
+
 def gs_tokenize_zinc():
     tokenizer = GroupSelfiesTokenizer("tokens/zinc_gs_grammar.txt")
     smiles = [line.split()[0] for line in open("zinc250k.smi", 'r')]
@@ -69,7 +81,25 @@ def sf_tokenize_zinc():
         for selfie in selfies:
             f.write(f"{selfie}\n") 
 
+def choose_tokenizer(tokenizer_type: str) -> BaseTokenizer:
+    if tokenizer_type == "selfies":
+        from src.tokenizers import SelfiesTokenizer
+        return SelfiesTokenizer()
+    elif "gs" in tokenizer_type:
+        from src.tokenizers import GroupSelfiesTokenizer
+        style = tokenizer_type.split("_")[1]
+        if style == "zinc":
+            return GroupSelfiesTokenizer("tokens/zinc_gs_grammar.txt")
+        elif style == "um":
+            return GroupSelfiesTokenizer("tokens/um_gs_grammar.txt")
+        else:
+            raise Exception(f"wrong style expected zinc or templates, got {style}")
+        
+
+    raise Exception(f"No tokenizer found for type {tokenizer_type}")     
+
 if __name__ == "__main__":
     # extract_groups_from_zinc()
-    gs_tokenize_zinc()
+    #gs_tokenize_zinc()
     #sf_tokenize_zinc()
+    um_gs_tokenize_zinc()

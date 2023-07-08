@@ -1,16 +1,18 @@
 AUTODOCK_LOCATION="../AutoDock-GPU/bin/autodock_gpu_128wi"
-TOKENS_PATH="tokens/" 
+TEMP_FOLDER="temp"
+TOKENS_PATH="tokens" 
 
 GEN_MODELS_SAVE="saved_models/generative_models"
 PROP_MODELS_SAVE="saved_models/property_models"
 
-CONFIGS={
+TOKENIZER_CONFIGS={
     "selfies":{
-        "token_file": "zinc250k.smi",
-        "tokenizer": "tokens/zinc_sf_seflies.txt"
+        "token_file": f"{TOKENS_PATH}/zinc_sf_selfies.txt"
     },
     "gs_zinc":{
-        "token_file": "zinc_gs_selfies.txt",
-        "tokenizer": "tokens/zinc_gs_seflies.txt"
+        "token_file": f"{TOKENS_PATH}/zinc_gs_selfies.txt"
+    },
+    "um_gs":{
+        "token_file": f"{TOKENS_PATH}/zinc_umgs_selfies.txt"
     }
 }

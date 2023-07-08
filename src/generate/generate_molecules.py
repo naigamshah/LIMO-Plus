@@ -5,26 +5,27 @@ import pytorch_lightning as pl
 import numpy as np
 import argparse
 from src.dataloaders import MolDataModule, PropDataModule
-from constants import*
+from src.constants import *
+from src.tokenizers import *
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--token_file', type=str, default='zinc250k.smi')
-    parser.add_argument('--tokenizer', type=str, default='selfies')
-    parser.add_argument('--prop', choices=['logp', 'penalized_logp', 'qed', 'sa', 'binding_affinity', 'multi_objective_binding_affinity'], default='multi_objective_binding_affinity')
-    parser.add_argument('--num_mols', type=int, default=10000)
-    parser.add_argument('--top_k', type=int, default=3)
-    parser.add_argument('--sa_cutoff', type=float, default=5.5)
-    parser.add_argument('--qed_cutoff', type=float, default=0.4)
-    parser.add_argument('--optim_steps', type=int, default=10)
-    parser.add_argument('--autodock_executable', type=str, default='../AutoDock-GPU/bin/autodock_gpu_128wi')
-    parser.add_argument('--protein_file', type=str, default='1err/1err.maps.fld')
-    args = parser.parse_args()
-    exp_suffix = args.tokenizer #"gs_zinc"
-    print(f"Training using {exp_suffix}")
+def generate_molecules(
+    token_file,
+    tokenizer,
+    prop='multi_objective_binding_affinity',
+    num_mols=10000,
+    top_k=3,
+    sa_cutoff=5.5,
+    qed_cutoff=0.4,
+    optim_steps=10,
+    autodock_executable='../AutoDock-GPU/bin/autodock_gpu_128wi',
+    protein_file='data/1err/1err.maps.fld'
+):
     
-    tokenizer = choose_tokenizer(args.tokenizer)
-    dm = MolDataModule(1024, args.token_file, tokenizer)
+    exp_suffix = tokenizer #"gs_zinc"
+    print(f"Generating using {exp_suffix}")
+    
+    tokenizer = choose_tokenizer(tokenizer)
+    dm = MolDataModule(1024, token_file, tokenizer)
     if torch.cuda.is_available():
         device = torch.device("cuda")
         num_devices = torch.cuda.device_count()
@@ -67,7 +68,7 @@ def main():
 
 
     def get_prop(prop, x):
-        smx = dm.dataset.one_hot_to_smiles(x)
+        smx = [dm.dataset.one_hot_to_smiles(x[i]) for i in range(x.shape[0])]
         return torch.tensor(props[prop](smx), device=device).unsqueeze(1).float()
 
     def run_multiobjective_and_filtering(num_mols, max_sa, min_qed):
@@ -95,29 +96,53 @@ def main():
             'penalized_logp': smiles_to_penalized_logp, 
             'qed': smiles_to_qed, 
             'sa': smiles_to_sa,
-            'binding_affinity': lambda x: smiles_to_affinity(x, args.autodock_executable, args.protein_file, num_devices=num_devices),
+            'binding_affinity': lambda x: smiles_to_affinity(x, autodock_executable, protein_file, num_devices=num_devices),
             'cycles': smiles_to_cycles}
 
-    if args.prop == 'multi_objective_binding_affinity':
-        smiles, prop, _, _ = run_multiobjective_and_filtering(args.num_mols, args.sa_cutoff, args.qed_cutoff)
+    if prop == 'multi_objective_binding_affinity':
+        smiles, prop, _, _ = run_multiobjective_and_filtering(num_mols, sa_cutoff, qed_cutoff)
     else:
-        z = get_optimized_z({args.prop: (1 if args.prop in ('sa', 'binding_affinity') else -1)}, args.num_mols, num_steps=args.optim_steps)
+        z = get_optimized_z({prop: (1 if prop in ('sa', 'binding_affinity') else -1)}, num_mols, num_steps=optim_steps)
         with torch.no_grad():
             x = torch.exp(vae.decode(z))
         smiles = [dm.dataset.one_hot_to_smiles(hot) for hot in x]
-        prop = get_prop(args.prop, x).detach().cpu().numpy().flatten()
+        prop = get_prop(prop, x).detach().cpu().numpy().flatten()
         
-    if args.prop in ('sa', 'binding_affinity', 'multi_objective_binding_affinity'):
+    if prop in ('sa', 'binding_affinity', 'multi_objective_binding_affinity'):
         pickle.dump([(prop[i], smiles[i]) for i in range(len(smiles))], 
                   open(f"gen_mols/{exp_suffix}.pkl", "wb"))
-        for i in np.argpartition(prop, args.top_k)[:args.top_k]:
-            if args.prop == 'binding_affinity':
+        for i in np.argpartition(prop, top_k)[:top_k]:
+            if prop == 'binding_affinity':
                 print(delta_g_to_kd(prop[i]), smiles[i])
             else:
                 print(prop[i], smiles[i])
     else:
-        for i in np.argpartition(prop, -args.top_k)[-args.top_k:]:
+        for i in np.argpartition(prop, -top_k)[-top_k:]:
             print(prop[i], smiles[i])
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--token_file', type=str, default='zinc250k.smi')
+    parser.add_argument('--tokenizer', type=str, default='selfies')
+    parser.add_argument('--prop', choices=['logp', 'penalized_logp', 'qed', 'sa', 'binding_affinity', 'multi_objective_binding_affinity'], default='multi_objective_binding_affinity')
+    parser.add_argument('--num_mols', type=int, default=10000)
+    parser.add_argument('--top_k', type=int, default=3)
+    parser.add_argument('--sa_cutoff', type=float, default=5.5)
+    parser.add_argument('--qed_cutoff', type=float, default=0.4)
+    parser.add_argument('--optim_steps', type=int, default=10)
+    parser.add_argument('--autodock_executable', type=str, default='../AutoDock-GPU/bin/autodock_gpu_128wi')
+    parser.add_argument('--protein_file', type=str, default='1err/1err.maps.fld')
+    args = parser.parse_args()
+
+    generate_molecules(
+        args.token_file,
+        args.tokenizer,
+        args.prop,
+        args.num_mols,
+        args.top_k,
+        args.sa_cutoff,
+        args.qed_cutoff,
+        args.optim_steps,
+        args.autodock_executable,
+        args.protein_file
+    )
