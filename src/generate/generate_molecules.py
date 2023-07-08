@@ -109,6 +109,8 @@ def generate_molecules(
         prop = get_prop(prop, x).detach().cpu().numpy().flatten()
         
     if prop in ('sa', 'binding_affinity', 'multi_objective_binding_affinity'):
+        if os.path.exists(f"gen_mols/"):
+            os.makedirs(f"gen_mols/")
         pickle.dump([(prop[i], smiles[i]) for i in range(len(smiles))], 
                   open(f"gen_mols/{exp_suffix}.pkl", "wb"))
         for i in np.argpartition(prop, top_k)[:top_k]:
