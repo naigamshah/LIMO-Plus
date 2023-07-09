@@ -63,7 +63,7 @@ spec:
         persistentVolumeClaim:
           claimName: vthumuluri-slow-vol-aimd
       restartPolicy: Never
-  backoffLimit: 1
+  backoffLimit: 0
 '''
 
 with open("temp_file.yaml", "w") as f:

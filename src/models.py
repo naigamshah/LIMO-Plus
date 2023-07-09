@@ -46,7 +46,7 @@ class VAE(pl.LightningModule):
         return self.decode(z), z, mu, log_var
     
     def configure_optimizers(self):
-        optimizer = optim.Adam(self.parameters(), lr=0.0001)
+        optimizer = optim.AdamW(self.parameters(), lr=0.0001, weight_decay=0.1)
         return {'optimizer': optimizer}
     
     def loss_function(self, pred, target, mu, log_var, batch_size, p):
@@ -89,7 +89,7 @@ class PropertyPredictor(pl.LightningModule):
         return self.fc(x)
     
     def configure_optimizers(self):
-        return optim.Adam(self.parameters(), lr=0.0001)
+        return optim.AdamW(self.parameters(), lr=self.learning_rate, weight_decay=0.1)
     
     def loss_function(self, pred, real):
         return F.mse_loss(pred, real)

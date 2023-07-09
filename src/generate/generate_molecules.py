@@ -11,7 +11,7 @@ from src.tokenizers import *
 def generate_molecules(
     token_file,
     tokenizer,
-    prop='multi_objective_binding_affinity',
+    opt_prop='multi_objective_binding_affinity',
     num_mols=10000,
     top_k=3,
     sa_cutoff=5.5,
@@ -23,7 +23,6 @@ def generate_molecules(
     
     exp_suffix = tokenizer #"gs_zinc"
     print(f"Generating using {exp_suffix}")
-    temp_folder = TEMP_FOLDER + f"_{exp_suffix}"
     
     tokenizer = choose_tokenizer(tokenizer)
     dm = MolDataModule(1024, token_file, tokenizer)
@@ -100,22 +99,22 @@ def generate_molecules(
             'binding_affinity': lambda x: smiles_to_affinity(x, autodock_executable, protein_file, num_devices=num_devices),
             'cycles': smiles_to_cycles}
 
-    if prop == 'multi_objective_binding_affinity':
+    if opt_prop == 'multi_objective_binding_affinity':
         smiles, prop, _, _ = run_multiobjective_and_filtering(num_mols, sa_cutoff, qed_cutoff)
     else:
-        z = get_optimized_z({prop: (1 if prop in ('sa', 'binding_affinity') else -1)}, num_mols, num_steps=optim_steps)
+        z = get_optimized_z({opt_prop: (1 if opt_prop in ('sa', 'binding_affinity') else -1)}, num_mols, num_steps=optim_steps)
         with torch.no_grad():
             x = torch.exp(vae.decode(z))
         smiles = [dm.dataset.one_hot_to_smiles(hot) for hot in x]
-        prop = get_prop(prop, x).detach().cpu().numpy().flatten()
+        prop = get_prop(opt_prop, x).detach().cpu().numpy().flatten()
         
-    if prop in ('sa', 'binding_affinity', 'multi_objective_binding_affinity'):
+    if opt_prop in ('sa', 'binding_affinity', 'multi_objective_binding_affinity'):
         if os.path.exists(f"gen_mols/"):
             os.makedirs(f"gen_mols/")
         pickle.dump([(prop[i], smiles[i]) for i in range(len(smiles))], 
                   open(f"gen_mols/{exp_suffix}.pkl", "wb"))
         for i in np.argpartition(prop, top_k)[:top_k]:
-            if prop == 'binding_affinity':
+            if opt_prop == 'binding_affinity':
                 print(delta_g_to_kd(prop[i]), smiles[i])
             else:
                 print(prop[i], smiles[i])
