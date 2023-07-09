@@ -67,16 +67,14 @@ def train_property_predictor(
     model = PropertyPredictor(x.shape[1])
     dm = PropDataModule(x[1000:], y[1000:], 1000)
     trainer = pl.Trainer(
-        accelerator="gpu", 
-        gpus=1, 
+        accelerator="gpu",
+        num_nodes=1,
         max_epochs=5,  
         enable_checkpointing=False, 
-        auto_lr_find=True,
-        logger=pl.loggers.CSVLogger('logs'),
+        logger=pl.loggers.CSVLogger('temp/logs'),
         callbacks=[
             pl.callbacks.TQDMProgressBar(refresh_rate=500),
         ])
-    trainer.tune(model, dm)
     trainer.fit(model, dm)
     model.eval()
     model = model.to(device)

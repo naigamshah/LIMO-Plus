@@ -89,7 +89,7 @@ class PropertyPredictor(pl.LightningModule):
         return self.fc(x)
     
     def configure_optimizers(self):
-        return optim.Adam(self.parameters(), lr=self.learning_rate)
+        return optim.Adam(self.parameters(), lr=0.0001)
     
     def loss_function(self, pred, real):
         return F.mse_loss(pred, real)

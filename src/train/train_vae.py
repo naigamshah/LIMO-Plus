@@ -20,7 +20,7 @@ def train_vae(token_file, tokenizer):
 
     trainer = pl.Trainer(
         accelerator="gpu", 
-        gpus=1, 
+        num_nodes=1,
         max_epochs=18, 
         enable_checkpointing=False,
         logger=pl.loggers.CSVLogger('temp/logs'),
