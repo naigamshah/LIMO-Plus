@@ -29,7 +29,7 @@ def main():
     # train property predictors
 
     if start_stage <= 1:
-        for prop_vals in [("sa", 100000), ("qed", 100000), ("binding_affinity", 10000)]:
+        for prop_vals in [("sa", 50000), ("qed", 50000), ("binding_affinity", 10000)]:
             train_property_predictor(
                 token_file=token_file, 
                 tokenizer=tokenizer,
