@@ -23,6 +23,7 @@ def generate_molecules(
     
     exp_suffix = tokenizer #"gs_zinc"
     print(f"Generating using {exp_suffix}")
+    temp_folder = TEMP_FOLDER + f"_{exp_suffix}"
     
     tokenizer = choose_tokenizer(tokenizer)
     dm = MolDataModule(1024, token_file, tokenizer)

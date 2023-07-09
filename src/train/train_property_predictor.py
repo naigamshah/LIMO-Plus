@@ -17,9 +17,9 @@ def train_property_predictor(
     autodock_executable='../AutoDock-GPU/bin/autodock_gpu_128wi',
     protein_file='data/1err/1err.maps.fld'
 ):
-    
     exp_suffix = tokenizer
     print(f"Train PP using {exp_suffix}")
+    temp_folder = TEMP_FOLDER + f"_{exp_suffix}"
     
     tokenizer = choose_tokenizer(tokenizer)
     dm = MolDataModule(1024, token_file, tokenizer)
