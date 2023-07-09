@@ -46,8 +46,16 @@ def train_property_predictor(
         #     print("loading existing")
         #     return pickle.load(open(f"property_models/{args.prop}_{exp_suffix}_x","rb")), pickle.load(open(f"property_models/{args.prop}_{exp_suffix}_y", "rb"))
         with torch.no_grad():
-            z = torch.randn((num_mols, 1024), device=device)
-            x = torch.exp(vae.decode(z))
+            xs = []
+            num_chunks = num_mols // MAX_MOLS_CHUNK 
+            if num_mols % MAX_MOLS_CHUNK != 0:
+                num_chunks += 1
+            idx = range(0, num_mols)
+            for i in range(num_chunks):
+                z = torch.randn((len(idx[i*MAX_MOLS_CHUNK:(i+1)*MAX_MOLS_CHUNK]), 1024), device=device)
+                xs.append(torch.exp(vae.decode(z)))
+
+            x = torch.cat(xs, dim=0)
             print(f"{exp_suffix}:{prop}: Decoding variance = {x.std()}", flush=True, file=open("temp/log_file.txt", "a+"))
             # pickle.dump(x, open(f"property_models/{args.prop}_{exp_suffix}_x", 'wb')) 
             smx = [dm.dataset.one_hot_to_smiles(x[i]) for i in range(x.shape[0])]

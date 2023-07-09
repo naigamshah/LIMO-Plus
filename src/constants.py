@@ -16,3 +16,5 @@ TOKENIZER_CONFIGS={
         "token_file": f"{TOKENS_PATH}/zinc_umgs_selfies.txt"
     }
 }
+
+MAX_MOLS_CHUNK = 10000
