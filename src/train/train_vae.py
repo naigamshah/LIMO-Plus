@@ -19,7 +19,7 @@ def train_vae(token_file, tokenizer):
             latent_dim=1024, embedding_dim=64)
 
     trainer = pl.Trainer(
-        accelerator="cpu", 
+        accelerator="gpu", 
         gpus=1, 
         max_epochs=18, 
         enable_checkpointing=False,
