@@ -46,7 +46,7 @@ def main():
         
     # generate molecules
     if start_stage <= 2:
-        generate_molecules(token_file=token_file, tokenizer=tokenizer)
+        generate_molecules(token_file=token_file, tokenizer=tokenizer, sa_cutoff=11, qed_cutoff=-1)
         # result = subprocess.run(["python", "src/generate/generate_molecules.py", f"--tokenizer {tokenizer} --token_file {token_file}"], check=True)
         # os.system(f"python src/generate/generate_molecules.py --tokenizer {tokenizer} --token_file {token_file}")    
 

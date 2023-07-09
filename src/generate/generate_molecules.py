@@ -55,7 +55,7 @@ def generate_molecules(
         z = torch.randn((num_mols, 1024), device=device, requires_grad=True)
         optimizer = optim.Adam([z], lr=0.1)
         losses = []
-        for epoch in tqdm(range(num_steps), desc='generating molecules'):
+        for epoch in tqdm.tqdm(range(num_steps), desc='generating molecules'):
             optimizer.zero_grad()
             loss = 0
             probs = torch.exp(vae.decode(z))
