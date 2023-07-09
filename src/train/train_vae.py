@@ -25,7 +25,7 @@ def train_vae(token_file, tokenizer):
         enable_checkpointing=False,
         logger=pl.loggers.CSVLogger('temp/logs'),
         callbacks=[
-            pl.callbacks.TQDMProgressBar(refresh_rate=1),
+            pl.callbacks.TQDMProgressBar(refresh_rate=500),
             # pl.callbacks.ModelCheckpoint(
             #     dirpath="./checkpoints",
             #     monitor="val_loss",
@@ -37,7 +37,7 @@ def train_vae(token_file, tokenizer):
     print('Training..')
     trainer.fit(vae, dm)
     print('Saving..')
-    if os.path.exists(f"{GEN_MODELS_SAVE}"):
+    if not os.path.exists(f"{GEN_MODELS_SAVE}"):
         os.makedirs(f"{GEN_MODELS_SAVE}")
     torch.save(vae.state_dict(), f'{GEN_MODELS_SAVE}/vae_{exp_suffix}.pt')
 

@@ -12,7 +12,7 @@ TOKENIZER_CONFIGS={
     "gs_zinc":{
         "token_file": f"{TOKENS_PATH}/zinc_gs_selfies.txt"
     },
-    "um_gs":{
+    "gs_um":{
         "token_file": f"{TOKENS_PATH}/zinc_umgs_selfies.txt"
     }
 }

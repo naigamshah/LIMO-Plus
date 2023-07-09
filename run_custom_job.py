@@ -7,14 +7,14 @@ parser.add_argument("-c", "--config", type=str)
 args = parser.parse_args()
 
 run_type = args.run_type
-config = args.config
+config:str = args.config
 
 yaml_config = \
 f'''
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: vthumuluri-job-{config}
+  name: vthumuluri-job-{config.replace("_","-")}
   namespace: ai-md
   labels:
     user: vthumuluri
