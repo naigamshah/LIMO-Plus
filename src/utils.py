@@ -99,38 +99,37 @@ def smiles_to_z(smiles, vae: VAE, dataset):
     return zs
 
 def smiles_to_affinity(smiles, autodock, protein_file, num_devices=torch.cuda.device_count()):
-    batch_size = 8
     with tempfile.TemporaryDirectory(dir="./", prefix="temp_") as temp_folder:
         if not os.path.exists(f'{temp_folder}/ligands'):
             os.makedirs(f'{temp_folder}/ligands')
         if not os.path.exists(f'{temp_folder}/outs'):
             os.makedirs(f'{temp_folder}/outs')
         subprocess.run('rm core.*', shell=True, stderr=subprocess.DEVNULL)
-        subprocess.run(f'rm {temp_folder}/outs/*', shell=True, stderr=subprocess.DEVNULL)
+        subprocess.run(f'rm {temp_folder}/outs/*.xml', shell=True, stderr=subprocess.DEVNULL)
+        subprocess.run(f'rm {temp_folder}/outs/*.dlg', shell=True, stderr=subprocess.DEVNULL)
         subprocess.run(f'rm -rf {temp_folder}/ligands/*', shell=True, stderr=subprocess.DEVNULL)
-        for batch_id in range(batch_size):
-            os.mkdir(f'{temp_folder}/ligands/{batch_id}')
-            os.mkdir(f'{temp_folder}/outs/{batch_id}')
-        batch_id = 0
+        for device in range(num_devices):
+            os.mkdir(f'{temp_folder}/ligands/{device}')
+        device = 0
         for i, hot in enumerate(tqdm(smiles, desc='preparing ligands')):
-            subprocess.Popen(f'obabel -:"{smiles[i]}" -O {temp_folder}/ligands/{batch_id}/ligand{i}.pdbqt -p 7.4 --partialcharge gasteiger --gen3d', shell=True, stderr=subprocess.DEVNULL)
-            batch_id += 1
-            if batch_id == batch_size:
-                batch_id = 0
+            subprocess.Popen(f'obabel -:"{smiles[i]}" -O {temp_folder}/ligands/{device}/ligand{i}.pdbqt -p 7.4 --partialcharge gasteiger --gen3d', shell=True, stderr=subprocess.DEVNULL)
+            device += 1
+            if device == num_devices:
+                device = 0
         while True:
             total = 0
-            for batch_id in range(batch_size):
-                total += len(os.listdir(f'{temp_folder}/ligands/{batch_id}'))
+            for device in range(num_devices):
+                total += len(os.listdir(f'{temp_folder}/ligands/{device}'))
             if total == len(smiles):
                 break
         time.sleep(1)
         print('running autodock..')
         if len(smiles) == 1:
-            subprocess.run(f'{autodock} -M {protein_file} -s 0 -L {temp_folder}/ligands/0/ligand0.pdbqt -N {temp_folder}/outs/0/ligand0', shell=True, stdout=subprocess.DEVNULL)
+            subprocess.run(f'{autodock} -M {protein_file} -s 0 -L {temp_folder}/ligands/0/ligand0.pdbqt -N {temp_folder}/outs/ligand0', shell=True, stdout=subprocess.DEVNULL)
         else:
             ps = []
-            for batch_id in range(batch_size):
-                ps.append(subprocess.Popen(f'{autodock} -M {protein_file} -s 0 -B {temp_folder}/ligands/{batch_id}/ligand*.pdbqt -N ../../outs/{batch_id} -D {1}', shell=True, stdout=subprocess.DEVNULL))
+            for device in range(num_devices):
+                ps.append(subprocess.Popen(f'{autodock} -M {protein_file} -s 0 -B {temp_folder}/ligands/{device}/ligand*.pdbqt -N ../../outs/ -D {device + 1}', shell=True, stdout=subprocess.DEVNULL))
             stop = False
             while not stop: 
                 for p in ps:
@@ -139,11 +138,11 @@ def smiles_to_affinity(smiles, autodock, protein_file, num_devices=torch.cuda.de
                         time.sleep(1)
                         stop = False
         affins = [0 for _ in range(len(smiles))]
-        for batch_id in range(batch_size):
-            for file in tqdm(os.listdir(f'{temp_folder}/outs/{batch_id}'), desc='extracting binding values'):
-                if file.endswith('.dlg') and '0.000   0.000   0.000  0.00  0.00' not in open(f'{temp_folder}/outs/{batch_id}/{file}').read():
-                    affins[int(file.split('ligand')[1].split('.')[0])] = float(subprocess.check_output(f"grep 'RANKING' {temp_folder}/outs/{batch_id}/{file} | tr -s ' ' | cut -f 5 -d ' ' | head -n 1", shell=True).decode('utf-8').strip())
+        for file in tqdm(os.listdir(f'{temp_folder}/outs'), desc='extracting binding values'):
+            if file.endswith('.dlg') and '0.000   0.000   0.000  0.00  0.00' not in open(f'{temp_folder}/outs/{file}').read():
+                affins[int(file.split('ligand')[1].split('.')[0])] = float(subprocess.check_output(f"grep 'RANKING' {temp_folder}/outs/{file} | tr -s ' ' | cut -f 5 -d ' ' | head -n 1", shell=True).decode('utf-8').strip())
         return [min(affin, 0) for affin in affins]
+
 
 # if os.path.exists('dm.pkl'):
 #     dm = pickle.load(open('dm.pkl', 'rb'))
