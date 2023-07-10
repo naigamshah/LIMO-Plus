@@ -6,10 +6,12 @@ from src.models import *
 from src.dataloaders import MolDataModule
 from src.constants import *
 from src.tokenizers import *
+import datetime
 
 def train_vae(token_file, tokenizer):
     exp_suffix =  tokenizer
     print(f"Train VAE using {exp_suffix}")
+    print(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{exp_suffix}: Train VAE", flush=True, file=open(f"temp/log_file_{exp_suffix}.txt", "a+"))
     
     tokenizer = choose_tokenizer(tokenizer)
     token_loc = token_file

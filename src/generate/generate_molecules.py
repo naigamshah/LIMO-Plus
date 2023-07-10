@@ -7,6 +7,7 @@ import argparse
 from src.dataloaders import MolDataModule, PropDataModule
 from src.constants import *
 from src.tokenizers import *
+import datetime
 
 def generate_molecules(
     token_file,
@@ -23,6 +24,7 @@ def generate_molecules(
     
     exp_suffix = tokenizer #"gs_zinc"
     print(f"Generating using {exp_suffix}")
+    print(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{exp_suffix}: Generating molecules", flush=True, file=open(f"temp/log_file_{exp_suffix}.txt", "a+"))
     
     tokenizer = choose_tokenizer(tokenizer)
     dm = MolDataModule(1024, token_file, tokenizer)
@@ -109,7 +111,7 @@ def generate_molecules(
         prop = get_prop(opt_prop, x).detach().cpu().numpy().flatten()
         
     if opt_prop in ('sa', 'binding_affinity', 'multi_objective_binding_affinity'):
-        if os.path.exists(f"gen_mols/"):
+        if not os.path.exists(f"gen_mols/"):
             os.makedirs(f"gen_mols/")
         pickle.dump([(prop[i], smiles[i]) for i in range(len(smiles))], 
                   open(f"gen_mols/{exp_suffix}.pkl", "wb"))

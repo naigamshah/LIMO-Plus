@@ -8,6 +8,7 @@ from src.models import *
 from src.dataloaders import MolDataModule, PropDataModule
 from src.constants import *
 from src.tokenizers import *
+import datetime
 
 def train_property_predictor(
     token_file,
@@ -18,7 +19,7 @@ def train_property_predictor(
     protein_file='data/1err/1err.maps.fld'
 ):
     exp_suffix = tokenizer
-    print(f"Train PP using {exp_suffix}")
+    print(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{exp_suffix}: Train PP", flush=True, file=open(f"temp/log_file_{exp_suffix}.txt", "a+"))
     temp_folder = TEMP_FOLDER + f"_{exp_suffix}"
     
     tokenizer = choose_tokenizer(tokenizer)
@@ -56,7 +57,7 @@ def train_property_predictor(
                 xs.append(torch.exp(vae.decode(z)))
 
             x = torch.cat(xs, dim=0)
-            print(f"{exp_suffix}:{prop}: Decoding variance = {x.std()}", flush=True, file=open(f"temp/log_file_{exp_suffix}.txt", "a+"))
+            print(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{exp_suffix}:{prop}: Decoding variance = {x.std()}", flush=True, file=open(f"temp/log_file_{exp_suffix}.txt", "a+"))
             # pickle.dump(x, open(f"property_models/{args.prop}_{exp_suffix}_x", 'wb')) 
             smx = [dm.dataset.one_hot_to_smiles(x[i]) for i in range(x.shape[0])]
             y = torch.tensor(prop_func(smx), device=device).unsqueeze(1).float()
@@ -87,7 +88,7 @@ def train_property_predictor(
     model.eval()
     model = model.to(device)
 
-    print(f'{exp_suffix}:{prop}: property predictor trained, correlation of r = {linregress(model(x[:1000].to(device)).detach().cpu().numpy().flatten(), y[:1000].detach().cpu().numpy().flatten()).rvalue}', flush=True, file=open(f"temp/log_file_{exp_suffix}.txt", "a+"))
+    print(f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}:{exp_suffix}:{prop}: property predictor trained, correlation of r = {linregress(model(x[:1000].to(device)).detach().cpu().numpy().flatten(), y[:1000].detach().cpu().numpy().flatten()).rvalue}', flush=True, file=open(f"temp/log_file_{exp_suffix}.txt", "a+"))
     if not os.path.exists(f'{PROP_MODELS_SAVE}'):
         os.makedirs(f'{PROP_MODELS_SAVE}')
     torch.save(model.state_dict(), f'{PROP_MODELS_SAVE}/{prop}_{exp_suffix}.pt')
