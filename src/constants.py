@@ -14,6 +14,9 @@ TOKENIZER_CONFIGS={
     },
     "gs_um":{
         "token_file": f"{TOKENS_PATH}/zinc_umgs_selfies.txt"
+    },
+    "gs_use":{
+        "token_file": f"{TOKENS_PATH}/zinc_usegs_selfies.txt"
     }
 }
 
