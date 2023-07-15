@@ -32,6 +32,7 @@ def generate_random_molecules(
 
     
     dm, model = get_dm_model(tokenizer=tokenizer, token_file=token_file, load_from_ckpt=True)
+    model.to(device)
     model.eval()
 
 
@@ -78,6 +79,7 @@ def generate_molecules(
 
     
     dm, model = get_dm_model(tokenizer=tokenizer, token_file=token_file, load_from_ckpt=True)
+    model.to(device)
     model.eval()
 
     def get_optimized_z(weights, num_mols, num_steps=10):

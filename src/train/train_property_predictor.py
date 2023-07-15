@@ -35,6 +35,7 @@ def train_property_predictor(
 
     
     dm, model = get_dm_model(tokenizer=tokenizer, token_file=token_file, load_from_ckpt=True)
+    model.to(device)
     model.eval()
 
     def generate_training_mols(num_mols, prop_func):
