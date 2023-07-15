@@ -8,6 +8,7 @@ from src.models import *
 from src.dataloaders import MolDataModule, PropDataModule
 from src.constants import *
 from src.tokenizers import *
+from src.train_utils import *
 import datetime
 
 def train_property_predictor(
@@ -20,10 +21,7 @@ def train_property_predictor(
 ):
     exp_suffix = tokenizer
     print(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{exp_suffix}: Train PP", flush=True, file=open(f"temp/log_file_{exp_suffix}.txt", "a+"))
-    temp_folder = TEMP_FOLDER + f"_{exp_suffix}"
     
-    tokenizer = choose_tokenizer(tokenizer)
-    dm = MolDataModule(1024, token_file, tokenizer)
     if torch.cuda.is_available():
         device = torch.device("cuda")
         num_devices = torch.cuda.device_count()
@@ -35,12 +33,9 @@ def train_property_predictor(
         device = torch.device("cpu")
         num_devices = 1
 
-    try:
-        vae = VAE(max_len=dm.dataset.max_len, vocab_len=len(dm.dataset.symbol_to_idx), latent_dim=1024, embedding_dim=64).to(device)
-    except NameError:
-        raise Exception('No dm.pkl found, please run preprocess_data.py first')
-    vae.load_state_dict(torch.load(f'{GEN_MODELS_SAVE}/vae_{exp_suffix}.pt'))
-    vae.eval()
+    
+    dm, model = get_dm_model(tokenizer=tokenizer, token_file=token_file, load_from_ckpt=True)
+    model.eval()
 
     def generate_training_mols(num_mols, prop_func):
         # if os.path.exists(f"property_models/{args.prop}_{exp_suffix}_y"):
@@ -54,7 +49,7 @@ def train_property_predictor(
             idx = range(0, num_mols)
             for i in range(num_chunks):
                 z = torch.randn((len(idx[i*MAX_MOLS_CHUNK:(i+1)*MAX_MOLS_CHUNK]), 1024), device=device)
-                xs.append(torch.exp(vae.decode(z)))
+                xs.append(torch.exp(model.decode(z)))
 
             x = torch.cat(xs, dim=0)
             print(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{exp_suffix}:{prop}: Decoding variance = {x.std()}", flush=True, file=open(f"temp/log_file_{exp_suffix}.txt", "a+"))

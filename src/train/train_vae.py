@@ -6,6 +6,7 @@ from src.models import *
 from src.dataloaders import MolDataModule
 from src.constants import *
 from src.tokenizers import *
+from src.train_utils import *
 import datetime
 
 def train_vae(token_file, tokenizer):
@@ -13,15 +14,10 @@ def train_vae(token_file, tokenizer):
     print(f"Train VAE using {exp_suffix}")
     print(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{exp_suffix}: Train VAE", flush=True, file=open(f"temp/log_file_{exp_suffix}.txt", "a+"))
     
-    tokenizer = choose_tokenizer(tokenizer)
-    token_loc = token_file
-
-    dm = MolDataModule(1024, token_loc, tokenizer)
-    vae = VAE(max_len=dm.dataset.max_len, vocab_len=len(dm.dataset.symbol_to_idx), 
-            latent_dim=1024, embedding_dim=64)
+    dm, model = get_dm_model(tokenizer=tokenizer, token_file=token_file)
 
     trainer = pl.Trainer(
-        accelerator="gpu", 
+        accelerator="cpu", 
         num_nodes=1,
         max_epochs=18, 
         enable_checkpointing=False,
@@ -37,11 +33,11 @@ def train_vae(token_file, tokenizer):
             # )
         ])
     print('Training..')
-    trainer.fit(vae, dm)
+    trainer.fit(model, dm)
     print('Saving..')
     if not os.path.exists(f"{GEN_MODELS_SAVE}"):
         os.makedirs(f"{GEN_MODELS_SAVE}")
-    torch.save(vae.state_dict(), f'{GEN_MODELS_SAVE}/vae_{exp_suffix}.pt')
+    torch.save(model.state_dict(), f'{GEN_MODELS_SAVE}/vae_{exp_suffix}.pt')
 
 if __name__ == '__main__':
 

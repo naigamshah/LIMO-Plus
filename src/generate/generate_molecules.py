@@ -7,7 +7,46 @@ import argparse
 from src.dataloaders import MolDataModule, PropDataModule
 from src.constants import *
 from src.tokenizers import *
+from src.train_utils import *
 import datetime
+
+def generate_random_molecules(
+    token_file,
+    tokenizer,
+    num_mols=5000,
+):
+    exp_suffix = tokenizer #"gs_zinc"
+    print(f"Generating random using {exp_suffix}")
+    print(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{exp_suffix}: Generating random molecules", flush=True, file=open(f"temp/log_file_{exp_suffix}.txt", "a+"))
+    
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+        num_devices = torch.cuda.device_count()
+    elif torch.backends.mps.is_available():
+        device = torch.device("cpu")
+        #device = torch.device("mps") #torch.device('cuda'  else 'cpu')
+        num_devices = 1
+    else:
+        device = torch.device("cpu")
+        num_devices = 1
+
+    
+    dm, model = get_dm_model(tokenizer=tokenizer, token_file=token_file, load_from_ckpt=True)
+    model.eval()
+
+
+    z = torch.randn((num_mols, 1024), device=device, requires_grad=True)
+    with torch.no_grad():
+        x = torch.exp(model.decode(z))
+
+    
+    smiles = [dm.dataset.one_hot_to_smiles(hot) for hot in x]
+
+    if not os.path.exists(f"gen_mols/random"):
+        os.makedirs(f"gen_mols/random")
+
+    pickle.dump([smiles[i] for i in range(len(smiles))], 
+                  open(f"gen_mols/random/{exp_suffix}.pkl", "wb"))
 
 def generate_molecules(
     token_file,
@@ -25,9 +64,7 @@ def generate_molecules(
     exp_suffix = tokenizer #"gs_zinc"
     print(f"Generating using {exp_suffix}")
     print(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{exp_suffix}: Generating molecules", flush=True, file=open(f"temp/log_file_{exp_suffix}.txt", "a+"))
-    
-    tokenizer = choose_tokenizer(tokenizer)
-    dm = MolDataModule(1024, token_file, tokenizer)
+
     if torch.cuda.is_available():
         device = torch.device("cuda")
         num_devices = torch.cuda.device_count()
@@ -39,13 +76,9 @@ def generate_molecules(
         device = torch.device("cpu")
         num_devices = 1
 
-    try:
-        vae = VAE(max_len=dm.dataset.max_len, vocab_len=len(dm.dataset.symbol_to_idx), latent_dim=1024, embedding_dim=64).to(device)
-    except NameError:
-        raise Exception('No dm.pkl found, please run preprocess_data.py first')
-    vae.load_state_dict(torch.load(f'{GEN_MODELS_SAVE}/vae_{exp_suffix}.pt', map_location="cpu"))
-    vae.eval()
     
+    dm, model = get_dm_model(tokenizer=tokenizer, token_file=token_file, load_from_ckpt=True)
+    model.eval()
 
     def get_optimized_z(weights, num_mols, num_steps=10):
         models = []
@@ -59,7 +92,7 @@ def generate_molecules(
         for epoch in tqdm.tqdm(range(num_steps), desc='generating molecules'):
             optimizer.zero_grad()
             loss = 0
-            probs = torch.exp(vae.decode(z))
+            probs = torch.exp(model.decode(z))
             for i, model in enumerate(models):
                 out = model(probs)
                 loss += torch.sum(out) * list(weights.values())[i]
@@ -78,7 +111,7 @@ def generate_molecules(
         #weights = {'sa': 2, 'qed': -8}
         z = get_optimized_z(weights, num_mols)
         with torch.no_grad():
-            x = torch.exp(vae.decode(z))
+            x = torch.exp(model.decode(z))
         cycles = get_prop('cycles', x)
         x = x[cycles.flatten() == 0]
         sa = get_prop('sa', x)
@@ -106,7 +139,7 @@ def generate_molecules(
     else:
         z = get_optimized_z({opt_prop: (1 if opt_prop in ('sa', 'binding_affinity') else -1)}, num_mols, num_steps=optim_steps)
         with torch.no_grad():
-            x = torch.exp(vae.decode(z))
+            x = torch.exp(model.decode(z))
         smiles = [dm.dataset.one_hot_to_smiles(hot) for hot in x]
         prop = get_prop(opt_prop, x).detach().cpu().numpy().flatten()
         
@@ -138,15 +171,21 @@ if __name__ == "__main__":
     parser.add_argument('--protein_file', type=str, default='1err/1err.maps.fld')
     args = parser.parse_args()
 
-    generate_molecules(
+    # generate_molecules(
+    #     args.token_file,
+    #     args.tokenizer,
+    #     args.prop,
+    #     args.num_mols,
+    #     args.top_k,
+    #     args.sa_cutoff,
+    #     args.qed_cutoff,
+    #     args.optim_steps,
+    #     args.autodock_executable,
+    #     args.protein_file
+    # )
+
+    generate_random_molecules(
         args.token_file,
         args.tokenizer,
-        args.prop,
         args.num_mols,
-        args.top_k,
-        args.sa_cutoff,
-        args.qed_cutoff,
-        args.optim_steps,
-        args.autodock_executable,
-        args.protein_file
     )

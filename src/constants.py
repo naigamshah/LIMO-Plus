@@ -12,6 +12,9 @@ TOKENIZER_CONFIGS={
     "gs_zinc":{
         "token_file": f"{TOKENS_PATH}/zinc_gs_selfies.txt"
     },
+    "gs_czinc":{
+        "token_file": f"{TOKENS_PATH}/zinc_gsc_selfies.txt"
+    },
     "gs_um":{
         "token_file": f"{TOKENS_PATH}/zinc_umgs_selfies.txt"
     },
@@ -21,3 +24,5 @@ TOKENIZER_CONFIGS={
 }
 
 MAX_MOLS_CHUNK = 10000
+SA_SCALING = 10
+QED_SCALING = 1

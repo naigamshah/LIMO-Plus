@@ -103,6 +103,8 @@ def choose_tokenizer(tokenizer_type: str) -> BaseTokenizer:
         style = tokenizer_type.split("_")[1]
         if style == "zinc":
             return GroupSelfiesTokenizer("tokens/zinc_gs_grammar.txt")
+        # elif style == "czinc":
+        #     return GroupSelfiesTokenizer("tokens/zinc_gs_grammar.txt", append_essential=True)
         elif style == "um":
             return GroupSelfiesTokenizer("tokens/um_gs_grammar.txt")
         elif style == "use":

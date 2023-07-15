@@ -11,11 +11,13 @@ from tqdm import tqdm
 import os
 from torch.utils.data import Dataset, DataLoader, TensorDataset, random_split
 from rdkit.Chem.Crippen import MolLogP
-from rdkit.Chem import MolFromSmiles, QED
+from rdkit.Chem import MolFromSmiles, QED, CanonSmiles
 from src.sascorer import calculateScore
 from src.tokenizers import BaseTokenizer
 from src.utils import *
 import numpy as np
+import json
+from src.constants import *
 # import multiprocessing
 # try:
 #     cpus = multiprocessing.cpu_count()
@@ -24,10 +26,10 @@ import numpy as np
 
 NUM_WORKERS = 4
 class MolDataModule(pl.LightningDataModule):
-    def __init__(self, batch_size, file, tokenizer):
+    def __init__(self, batch_size, file, tokenizer, conditional=False):
         super(MolDataModule, self).__init__()
         self.batch_size = batch_size
-        self.dataset = TokenizedDataset(file, tokenizer)
+        self.dataset = TokenizedDataset(file, tokenizer, conditional)
         self.train_data, self.test_data = random_split(self.dataset, [int(round(len(self.dataset) * 0.8)), int(round(len(self.dataset) * 0.2))])
     
     def train_dataloader(self):
@@ -52,7 +54,7 @@ class PropDataModule(pl.LightningDataModule):
         
 
 class TokenizedDataset(Dataset):
-    def __init__(self, file, tokenizer: BaseTokenizer):
+    def __init__(self, file, tokenizer: BaseTokenizer, conditional=False):
         self.tokenizer = tokenizer
         selfies = [line.split()[0] for line in open(file, 'r')]
         # pool = multiprocessing.Pool(processes=cpus)
@@ -67,6 +69,18 @@ class TokenizedDataset(Dataset):
         self.symbol_to_idx = {s: i for i, s in enumerate(self.alphabet)}
         self.idx_to_symbol = {i: s for i, s in enumerate(self.alphabet)}
         self.encodings = [[self.symbol_to_idx[symbol] for symbol in sf.split_selfies(s)] for s in selfies]
+        self.conditional = conditional
+        if conditional:
+            prop_file = f'data/properties/{os.path.basename(file).replace(".txt", ".json")}'
+            if os.path.exists(prop_file):
+                props = json.load(open(prop_file, "r"))
+                self.props = [props[s] for s in selfies]
+            else:
+                os.makedirs("data/properties/", exist_ok=True)
+                props = json.load(open("data/zinc250k.json","r"))
+                prop_dict = {s:props[CanonSmiles(tokenizer.decoder(s))] for s in selfies}
+                json.dump(prop_dict, open(prop_file, "w+"))
+                self.props = [prop_dict[s] for s in selfies]
         print(f"Alphabet len is {len(self.alphabet)}, max len is {self.max_len}")
         print(f"Avg encoding len {np.mean([len(e) for e in self.encodings])}")
 
@@ -74,7 +88,13 @@ class TokenizedDataset(Dataset):
         return len(self.encodings)
     
     def __getitem__(self, i):
-        return torch.tensor(self.encodings[i] + [self.symbol_to_idx['[nop]'] for _ in range(self.max_len - len(self.encodings[i]))])
+        item = {
+            "x": torch.tensor(self.encodings[i] + [self.symbol_to_idx['[nop]'] for _ in range(self.max_len - len(self.encodings[i]))]),
+        }
+        if self.conditional:
+            item["sa"] = torch.tensor([self.props[i]["sa"]]) / SA_SCALING
+            item["qed"]= torch.tensor([self.props[i]["qed"]]) / QED_SCALING
+        return item
     
     def smiles_to_indices(self, smiles):
         encoding = [self.symbol_to_idx[symbol] for symbol in sf.split_selfies(self.tokenizer.encoder(smiles))]
