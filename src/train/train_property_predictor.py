@@ -84,9 +84,9 @@ def train_property_predictor(
     model = model.to(device)
 
     print(f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}:{exp_suffix}:{prop}: property predictor trained, correlation of r = {linregress(model(x[:1000].to(device)).detach().cpu().numpy().flatten(), y[:1000].detach().cpu().numpy().flatten()).rvalue}', flush=True, file=open(f"temp/log_file_{exp_suffix}.txt", "a+"))
-    if not os.path.exists(f'{PROP_MODELS_SAVE}'):
-        os.makedirs(f'{PROP_MODELS_SAVE}')
-    torch.save(model.state_dict(), f'{PROP_MODELS_SAVE}/{prop}_{exp_suffix}.pt')
+    if not os.path.exists(f'{PROP_MODELS_SAVE}/cvae'):
+        os.makedirs(f'{PROP_MODELS_SAVE}/cvae')
+    torch.save(model.state_dict(), f'{PROP_MODELS_SAVE}/cvae/{prop}_{exp_suffix}.pt')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

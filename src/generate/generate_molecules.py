@@ -84,7 +84,7 @@ def generate_molecules(
         models = []
         for prop_name in weights:
             models.append(PropertyPredictor(dm.dataset.max_len * len(dm.dataset.symbol_to_idx)))
-            models[-1].load_state_dict(torch.load(f'{PROP_MODELS_SAVE}/{prop_name}_{exp_suffix}.pt', map_location="cpu"))
+            models[-1].load_state_dict(torch.load(f'{PROP_MODELS_SAVE}/cvae/{prop_name}_{exp_suffix}.pt', map_location="cpu"))
             models[-1] = models[-1].to(device)
         z = torch.randn((num_mols, 1024), device=device, requires_grad=True)
         optimizer = optim.Adam([z], lr=0.1)
@@ -144,10 +144,10 @@ def generate_molecules(
         prop = get_prop(opt_prop, x).detach().cpu().numpy().flatten()
         
     if opt_prop in ('sa', 'binding_affinity', 'multi_objective_binding_affinity'):
-        if not os.path.exists(f"gen_mols/"):
-            os.makedirs(f"gen_mols/")
+        if not os.path.exists(f"gen_mols/cvae/"):
+            os.makedirs(f"gen_mols/cvae/")
         pickle.dump([(prop[i], smiles[i]) for i in range(len(smiles))], 
-                  open(f"gen_mols/{exp_suffix}.pkl", "wb"))
+                  open(f"gen_mols/cvae/{exp_suffix}.pkl", "wb"))
         for i in np.argpartition(prop, top_k)[:top_k]:
             if opt_prop == 'binding_affinity':
                 print(delta_g_to_kd(prop[i]), smiles[i])

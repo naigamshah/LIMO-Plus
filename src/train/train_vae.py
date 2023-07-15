@@ -37,7 +37,7 @@ def train_vae(token_file, tokenizer):
     print('Saving..')
     if not os.path.exists(f"{GEN_MODELS_SAVE}"):
         os.makedirs(f"{GEN_MODELS_SAVE}")
-    torch.save(model.state_dict(), f'{GEN_MODELS_SAVE}/vae_{exp_suffix}.pt')
+    torch.save(model.state_dict(), f'{GEN_MODELS_SAVE}/cvae_{exp_suffix}.pt')
 
 if __name__ == '__main__':
 
