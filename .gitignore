@@ -10,3 +10,4 @@ data/USPTO_MIT.csv
 .ipynb_checkpoints
 
 temp_file.yaml
+data/properties/*
