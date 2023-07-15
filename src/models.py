@@ -127,9 +127,9 @@ class cVAE(VAE):
     
     def decode(self, z, sa=None, qed=None):
         if sa is None:
-            sa = torch.ones(z.shape[0], 1) * 0.1
+            sa = torch.ones(z.shape[0], 1, device=z.device) * 0.1
         if qed is None:
-            qed = torch.ones(z.shape[0], 1) * 0.9
+            qed = torch.ones(z.shape[0], 1, device=z.device) * 0.9
         inp_emb = torch.cat([
                 self.cond_emb.qed(qed), 
                 self.cond_emb.sa(sa),  

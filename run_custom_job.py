@@ -21,7 +21,7 @@ metadata:
   labels:
     user: vthumuluri
 spec:
-  ttlSecondsAfterFinished: 6000 # 100 minute to delete completed jobs
+  ttlSecondsAfterFinished: 36000 # 100 minute to delete completed jobs
   template:
     spec:
       affinity:
