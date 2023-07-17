@@ -9,12 +9,12 @@ from src.tokenizers import *
 from src.train_utils import *
 import datetime
 
-def train_vae(token_file, tokenizer):
+def train_vae(token_file, tokenizer, model_type="vae"):
     exp_suffix =  tokenizer
     print(f"Train VAE using {exp_suffix}")
     print(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{exp_suffix}: Train VAE", flush=True, file=open(f"temp/log_file_{exp_suffix}.txt", "a+"))
     
-    dm, model = get_dm_model(tokenizer=tokenizer, token_file=token_file)
+    dm, model = get_dm_model(tokenizer=tokenizer, token_file=token_file, model_type=model_type)
 
     trainer = pl.Trainer(
         accelerator="gpu", 
@@ -37,7 +37,7 @@ def train_vae(token_file, tokenizer):
     print('Saving..')
     if not os.path.exists(f"{GEN_MODELS_SAVE}"):
         os.makedirs(f"{GEN_MODELS_SAVE}")
-    torch.save(model.state_dict(), f'{GEN_MODELS_SAVE}/cvae/cvae_{exp_suffix}.pt')
+    torch.save(model.state_dict(), f'{GEN_MODELS_SAVE}/{model_type}/{model_type}_{exp_suffix}.pt')
 
 if __name__ == '__main__':
 

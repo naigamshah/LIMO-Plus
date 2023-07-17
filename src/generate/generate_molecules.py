@@ -13,11 +13,12 @@ import datetime
 def generate_random_molecules(
     token_file,
     tokenizer,
+    model_type,
     num_mols=5000,
 ):
     exp_suffix = tokenizer #"gs_zinc"
     print(f"Generating random using {exp_suffix}")
-    print(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{exp_suffix}: Generating random molecules", flush=True, file=open(f"temp/log_file_{exp_suffix}.txt", "a+"))
+    print(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{exp_suffix}:{model_type}: Generating random molecules", flush=True, file=open(f"temp/log_file_{exp_suffix}.txt", "a+"))
     
     if torch.cuda.is_available():
         device = torch.device("cuda")
@@ -31,7 +32,7 @@ def generate_random_molecules(
         num_devices = 1
 
     
-    dm, model = get_dm_model(tokenizer=tokenizer, token_file=token_file, load_from_ckpt=True)
+    dm, model = get_dm_model(tokenizer=tokenizer, token_file=token_file, model_type=model_type, load_from_ckpt=True)
     model.to(device)
     model.eval()
 
@@ -52,6 +53,7 @@ def generate_random_molecules(
 def generate_molecules(
     token_file,
     tokenizer,
+    model_type,
     opt_prop='multi_objective_binding_affinity',
     num_mols=10000,
     top_k=3,
@@ -64,7 +66,7 @@ def generate_molecules(
     
     exp_suffix = tokenizer #"gs_zinc"
     print(f"Generating using {exp_suffix}")
-    print(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{exp_suffix}: Generating molecules", flush=True, file=open(f"temp/log_file_{exp_suffix}.txt", "a+"))
+    print(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{exp_suffix}:{model_type} Generating molecules", flush=True, file=open(f"temp/log_file_{exp_suffix}.txt", "a+"))
 
     if torch.cuda.is_available():
         device = torch.device("cuda")
@@ -78,7 +80,7 @@ def generate_molecules(
         num_devices = 1
 
     
-    dm, model = get_dm_model(tokenizer=tokenizer, token_file=token_file, load_from_ckpt=True)
+    dm, model = get_dm_model(tokenizer=tokenizer, token_file=token_file, model_type=model_type, load_from_ckpt=True)
     model.to(device)
     model.eval()
 
@@ -86,12 +88,12 @@ def generate_molecules(
         models = []
         for prop_name in weights:
             models.append(PropertyPredictor(dm.dataset.max_len * len(dm.dataset.symbol_to_idx)))
-            models[-1].load_state_dict(torch.load(f'{PROP_MODELS_SAVE}/cvae/{prop_name}_{exp_suffix}.pt', map_location="cpu"))
+            models[-1].load_state_dict(torch.load(f'{PROP_MODELS_SAVE}/{model_type}/{prop_name}_{exp_suffix}.pt', map_location="cpu"))
             models[-1] = models[-1].to(device)
         z = torch.randn((num_mols, 1024), device=device, requires_grad=True)
         optimizer = optim.Adam([z], lr=0.1)
         losses = []
-        for epoch in tqdm.tqdm(range(num_steps), desc='generating molecules'):
+        for epoch in tqdm(range(num_steps), desc='generating molecules'):
             optimizer.zero_grad()
             loss = 0
             probs = torch.exp(model.decode(z))
@@ -146,10 +148,10 @@ def generate_molecules(
         prop = get_prop(opt_prop, x).detach().cpu().numpy().flatten()
         
     if opt_prop in ('sa', 'binding_affinity', 'multi_objective_binding_affinity'):
-        if not os.path.exists(f"gen_mols/cvae/"):
-            os.makedirs(f"gen_mols/cvae/")
+        if not os.path.exists(f"gen_mols/{model_type}/"):
+            os.makedirs(f"gen_mols/{model_type}/")
         pickle.dump([(prop[i], smiles[i]) for i in range(len(smiles))], 
-                  open(f"gen_mols/cvae/{exp_suffix}.pkl", "wb"))
+                  open(f"gen_mols/{model_type}/{exp_suffix}.pkl", "wb"))
         for i in np.argpartition(prop, top_k)[:top_k]:
             if opt_prop == 'binding_affinity':
                 print(delta_g_to_kd(prop[i]), smiles[i])

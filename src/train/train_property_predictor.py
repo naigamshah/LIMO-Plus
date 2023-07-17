@@ -14,6 +14,7 @@ import datetime
 def train_property_predictor(
     token_file,
     tokenizer,
+    model_type,
     prop,
     num_mols=10000,
     autodock_executable='../AutoDock-GPU/bin/autodock_gpu_128wi',
@@ -34,7 +35,7 @@ def train_property_predictor(
         num_devices = 1
 
     
-    dm, model = get_dm_model(tokenizer=tokenizer, token_file=token_file, load_from_ckpt=True)
+    dm, model = get_dm_model(tokenizer=tokenizer, token_file=token_file, model_type=model_type, load_from_ckpt=True)
     model.to(device)
     model.eval()
 
@@ -85,9 +86,9 @@ def train_property_predictor(
     model = model.to(device)
 
     print(f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}:{exp_suffix}:{prop}: property predictor trained, correlation of r = {linregress(model(x[:1000].to(device)).detach().cpu().numpy().flatten(), y[:1000].detach().cpu().numpy().flatten()).rvalue}', flush=True, file=open(f"temp/log_file_{exp_suffix}.txt", "a+"))
-    if not os.path.exists(f'{PROP_MODELS_SAVE}/cvae'):
-        os.makedirs(f'{PROP_MODELS_SAVE}/cvae')
-    torch.save(model.state_dict(), f'{PROP_MODELS_SAVE}/cvae/{prop}_{exp_suffix}.pt')
+    if not os.path.exists(f'{PROP_MODELS_SAVE}/{model_type}'):
+        os.makedirs(f'{PROP_MODELS_SAVE}/{model_type}')
+    torch.save(model.state_dict(), f'{PROP_MODELS_SAVE}/{model_type}/{prop}_{exp_suffix}.pt')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
