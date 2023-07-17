@@ -72,12 +72,12 @@ def use_gs_tokenize_zinc():
             f.write(f"{selfie}\n") 
 
 def gs_tokenize_zinc():
-    tokenizer = GroupSelfiesTokenizer("tokens/zinc_gs_grammar.txt")
+    tokenizer = GroupSelfiesTokenizer("tokens/zinc_gs_grammar.txt", append_essential=True)
     smiles = [line.split()[0] for line in open("zinc250k.smi", 'r')]
-    pool = multiprocessing.Pool(processes=8)
-    parallelized = pool.map(lambda x: tokenizer.encoder(x), smiles)
-    selfies = [x for x in tqdm(parallelized) if x]
-    #selfies = [tokenizer.encoder(smile) for smile in tqdm.tqdm(smiles)]
+    # pool = multiprocessing.Pool(processes=8)
+    # parallelized = pool.map(lambda x: tokenizer.encoder(x), smiles)
+    # selfies = [x for x in tqdm(parallelized) if x]
+    selfies = [tokenizer.encoder(smile) for smile in tqdm.tqdm(smiles)]
     with open("tokens/zinc_gsc_selfies.txt", "w") as f:
         for selfie in selfies:
             f.write(f"{selfie}\n") 
@@ -103,8 +103,8 @@ def choose_tokenizer(tokenizer_type: str) -> BaseTokenizer:
         style = tokenizer_type.split("_")[1]
         if style == "zinc":
             return GroupSelfiesTokenizer("tokens/zinc_gs_grammar.txt")
-        # elif style == "czinc":
-        #     return GroupSelfiesTokenizer("tokens/zinc_gs_grammar.txt", append_essential=True)
+        elif style == "czinc":
+            return GroupSelfiesTokenizer("tokens/zinc_gs_grammar.txt", append_essential=True)
         elif style == "um":
             return GroupSelfiesTokenizer("tokens/um_gs_grammar.txt")
         elif style == "use":

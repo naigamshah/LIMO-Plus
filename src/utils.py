@@ -99,7 +99,7 @@ def smiles_to_z(smiles, vae: VAE, dataset):
     return zs
 
 def smiles_to_affinity(smiles, autodock, protein_file, num_devices=torch.cuda.device_count()):
-    with tempfile.TemporaryDirectory(dir="./", prefix="temp_") as temp_folder:
+    with tempfile.TemporaryDirectory(dir="/dev/shm/", prefix="temp_") as temp_folder:
         if not os.path.exists(f'{temp_folder}/ligands'):
             os.makedirs(f'{temp_folder}/ligands')
         if not os.path.exists(f'{temp_folder}/outs'):
@@ -123,7 +123,7 @@ def smiles_to_affinity(smiles, autodock, protein_file, num_devices=torch.cuda.de
             if total == len(smiles):
                 break
         time.sleep(1)
-        print('running autodock..')
+        print('running autodock..', flush=True)
         if len(smiles) == 1:
             subprocess.run(f'{autodock} -M {protein_file} -s 0 -L {temp_folder}/ligands/0/ligand0.pdbqt -N {temp_folder}/outs/ligand0', shell=True, stdout=subprocess.DEVNULL)
         else:
