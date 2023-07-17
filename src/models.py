@@ -53,7 +53,7 @@ class VAE(pl.LightningModule):
     def loss_function(self, pred, target, mu, log_var, batch_size, p):
         nll = F.nll_loss(pred, target)
         kld = -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp()) / (batch_size * pred.shape[1])
-        return (1 - p) * nll + p * kld, nll, kld
+        return nll + p * kld, nll, kld
     
     def training_step(self, train_batch, batch_idx):
         out, z, mu, log_var = self(**train_batch)
