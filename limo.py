@@ -41,6 +41,15 @@ def main():
                 prop=prop_vals[0], 
                 num_mols=prop_vals[1],
                 autodock_executable=AUTODOCK_LOCATION)
+        if model_type == "vae":
+            for prop_vals in [("sa", 50000), ("qed", 50000)]:
+                train_property_predictor(
+                    token_file=token_file, 
+                    tokenizer=tokenizer,
+                    model_type=model_type,
+                    prop=prop_vals[0], 
+                    num_mols=prop_vals[1],
+                    autodock_executable=AUTODOCK_LOCATION)
             # os.system(f"python src/train/train_property_predictors.py --tokenizer {tokenizer} --token_file {token_file} \
             #           --prop {prop_vals[0]} --num_mols {prop_vals[1]} --autodock_executable {AUTODOCK_LOCATION} ")
             # result = subprocess.run(["python", "src/train/train_property_predictors.py", 
