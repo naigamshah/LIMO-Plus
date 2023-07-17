@@ -1,4 +1,4 @@
-AUTODOCK_LOCATION="../AutoDock-GPU/bin/autodock_gpu_128wi"
+AUTODOCK_LOCATION="../AutoDock-GPU/bin/autodock_gpu_64wi"
 TEMP_FOLDER="temp"
 TOKENS_PATH="tokens" 
 

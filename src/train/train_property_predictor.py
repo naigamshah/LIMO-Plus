@@ -17,7 +17,7 @@ def train_property_predictor(
     model_type,
     prop,
     num_mols=10000,
-    autodock_executable='../AutoDock-GPU/bin/autodock_gpu_128wi',
+    autodock_executable='../AutoDock-GPU/bin/autodock_gpu_64wi',
     protein_file='data/1err/1err.maps.fld'
 ):
     exp_suffix = tokenizer
@@ -96,7 +96,7 @@ if __name__ == '__main__':
     parser.add_argument('--tokenizer', type=str, default='selfies')
     parser.add_argument('--prop', choices=['logp', 'penalized_logp', 'qed', 'sa', 'binding_affinity'], default='binding_affinity')
     parser.add_argument('--num_mols', type=int, default=10000)
-    parser.add_argument('--autodock_executable', type=str, default='../AutoDock-GPU/bin/autodock_gpu_128wi')
+    parser.add_argument('--autodock_executable', type=str, default='../AutoDock-GPU/bin/autodock_gpu_64wi')
     parser.add_argument('--protein_file', type=str, default='data/1err/1err.maps.fld')
     args = parser.parse_args()
 

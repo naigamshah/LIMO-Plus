@@ -60,7 +60,7 @@ def generate_molecules(
     sa_cutoff=5.5,
     qed_cutoff=0.4,
     optim_steps=10,
-    autodock_executable='../AutoDock-GPU/bin/autodock_gpu_128wi',
+    autodock_executable='../AutoDock-GPU/bin/autodock_gpu_64wi',
     protein_file='data/1err/1err.maps.fld'
 ):
     
@@ -171,7 +171,7 @@ if __name__ == "__main__":
     parser.add_argument('--sa_cutoff', type=float, default=5.5)
     parser.add_argument('--qed_cutoff', type=float, default=0.4)
     parser.add_argument('--optim_steps', type=int, default=10)
-    parser.add_argument('--autodock_executable', type=str, default='../AutoDock-GPU/bin/autodock_gpu_128wi')
+    parser.add_argument('--autodock_executable', type=str, default='../AutoDock-GPU/bin/autodock_gpu_64wi')
     parser.add_argument('--protein_file', type=str, default='1err/1err.maps.fld')
     args = parser.parse_args()
 
