@@ -11,6 +11,7 @@ class VAE(pl.LightningModule):
         self.latent_dim = latent_dim
         self.max_len = max_len
         self.vocab_len = vocab_len
+        self.embedding_dim = embedding_dim
         self.embedding = nn.Embedding(vocab_len, embedding_dim, padding_idx=0)
         self.encoder = nn.Sequential(nn.Linear(max_len * embedding_dim, 2000),
                                      nn.ReLU(),
@@ -56,7 +57,7 @@ class VAE(pl.LightningModule):
     
     def training_step(self, train_batch, batch_idx):
         out, z, mu, log_var = self(**train_batch)
-        p = min(self.current_epoch/2, 1)  #0.1
+        p = min(self.current_epoch/20, 1)  #0.1
         loss, nll, kld = self.loss_function(out.reshape((-1, self.vocab_len)), train_batch["x"].flatten(), mu, log_var, len(train_batch), p)
         self.log('train_loss', loss)
         self.log('train_nll', nll)
@@ -65,7 +66,7 @@ class VAE(pl.LightningModule):
         
     def validation_step(self, val_batch, batch_idx):
         out, z, mu, log_var = self(**val_batch)
-        p = min(self.current_epoch/2, 1)  #0.1
+        p = min(self.current_epoch/20, 1)  #0.1
         loss, nll, kld = self.loss_function(out.reshape((-1, self.vocab_len)), val_batch["x"].flatten(), mu, log_var, len(val_batch), p)
         self.log('val_loss', loss)
         self.log('val_nll', nll)
@@ -127,9 +128,9 @@ class cVAE(VAE):
     
     def decode(self, z, sa=None, qed=None):
         if sa is None:
-            sa = torch.ones(z.shape[0], 1, device=z.device) * 0.1
+            sa = torch.ones(z.shape[0], 1, device=z.device) * 0.2
         if qed is None:
-            qed = torch.ones(z.shape[0], 1, device=z.device) * 0.9
+            qed = torch.ones(z.shape[0], 1, device=z.device) * 0.8
         inp_emb = torch.cat([
                 self.cond_emb.qed(qed), 
                 self.cond_emb.sa(sa),  

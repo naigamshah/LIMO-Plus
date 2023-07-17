@@ -17,7 +17,7 @@ def train_vae(token_file, tokenizer):
     dm, model = get_dm_model(tokenizer=tokenizer, token_file=token_file)
 
     trainer = pl.Trainer(
-        accelerator="cpu", 
+        accelerator="gpu", 
         num_nodes=1,
         max_epochs=18, 
         enable_checkpointing=False,
@@ -37,7 +37,7 @@ def train_vae(token_file, tokenizer):
     print('Saving..')
     if not os.path.exists(f"{GEN_MODELS_SAVE}"):
         os.makedirs(f"{GEN_MODELS_SAVE}")
-    torch.save(model.state_dict(), f'{GEN_MODELS_SAVE}/cvae_{exp_suffix}.pt')
+    torch.save(model.state_dict(), f'{GEN_MODELS_SAVE}/cvae/cvae_{exp_suffix}.pt')
 
 if __name__ == '__main__':
 

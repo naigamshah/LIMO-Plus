@@ -14,5 +14,5 @@ def get_dm_model(tokenizer, token_file, load_from_ckpt=False):
     
     if load_from_ckpt:
         model_prefix = "cvae" if conditional else "vae" 
-        model.load_state_dict(torch.load(f'{GEN_MODELS_SAVE}/{model_prefix}_{exp_suffix}.pt'))
+        model.load_state_dict(torch.load(f'{GEN_MODELS_SAVE}/{model_prefix}/{model_prefix}_{exp_suffix}.pt'))
     return dm, model

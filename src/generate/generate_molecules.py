@@ -47,7 +47,7 @@ def generate_random_molecules(
         os.makedirs(f"gen_mols/random")
 
     pickle.dump([smiles[i] for i in range(len(smiles))], 
-                  open(f"gen_mols/random/{exp_suffix}.pkl", "wb"))
+                  open(f"gen_mols/random/cvae_{exp_suffix}.pkl", "wb"))
 
 def generate_molecules(
     token_file,
