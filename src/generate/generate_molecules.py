@@ -116,8 +116,8 @@ def generate_molecules(
         z = get_optimized_z(weights, num_mols)
         with torch.no_grad():
             x = torch.exp(model.decode(z))
-        cycles = get_prop('cycles', x)
-        x = x[cycles.flatten() == 0]
+        # cycles = get_prop('cycles', x)
+        # x = x[cycles.flatten() == 0]
         sa = get_prop('sa', x)
         x = x[sa.flatten() < max_sa]
         sa = sa[sa.flatten() < max_sa]
