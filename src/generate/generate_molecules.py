@@ -80,9 +80,9 @@ def generate_molecules(
         num_devices = 1
 
     
-    dm, model = get_dm_model(tokenizer=tokenizer, token_file=token_file, model_type=model_type, load_from_ckpt=True)
-    model.to(device)
-    model.eval()
+    dm, gen_model = get_dm_model(tokenizer=tokenizer, token_file=token_file, model_type=model_type, load_from_ckpt=True)
+    gen_model.to(device)
+    gen_model.eval()
 
     def get_optimized_z(weights, num_mols, num_steps=10):
         models = []
@@ -96,7 +96,7 @@ def generate_molecules(
         for epoch in tqdm(range(num_steps), desc='generating molecules'):
             optimizer.zero_grad()
             loss = 0
-            probs = torch.exp(model.decode(z))
+            probs = torch.exp(gen_model.decode(z))
             for i, model in enumerate(models):
                 out = model(probs)
                 loss += torch.sum(out) * list(weights.values())[i]
@@ -115,7 +115,7 @@ def generate_molecules(
         #weights = {'sa': 2, 'qed': -8}
         z = get_optimized_z(weights, num_mols)
         with torch.no_grad():
-            x = torch.exp(model.decode(z))
+            x = torch.exp(gen_model.decode(z))
         # cycles = get_prop('cycles', x)
         # x = x[cycles.flatten() == 0]
         sa = get_prop('sa', x)
@@ -143,7 +143,7 @@ def generate_molecules(
     else:
         z = get_optimized_z({opt_prop: (1 if opt_prop in ('sa', 'binding_affinity') else -1)}, num_mols, num_steps=optim_steps)
         with torch.no_grad():
-            x = torch.exp(model.decode(z))
+            x = torch.exp(gen_model.decode(z))
         smiles = [dm.dataset.one_hot_to_smiles(hot) for hot in x]
         prop = get_prop(opt_prop, x).detach().cpu().numpy().flatten()
         

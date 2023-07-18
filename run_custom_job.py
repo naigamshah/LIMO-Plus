@@ -26,15 +26,16 @@ spec:
   ttlSecondsAfterFinished: 36000 # 100 minute to delete completed jobs
   template:
     spec:
-      # affinity:
-      #   nodeAffinity:
-      #     requiredDuringSchedulingIgnoredDuringExecution:
-      #       nodeSelectorTerms:
-      #       - matchExpressions:
-      #         - key: nvidia.com/gpu.product
-      #           operator: In
-      #           values:
-      #           - NVIDIA-GeForce-RTX-2080-Ti
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: nvidia.com/gpu.product
+                operator: NotIn
+                values:
+                - NVIDIA-A10
+                #- NVIDIA-GeForce-RTX-2080-Ti
       containers:
       - name: gpu-container
         image: gitlab-registry.nrp-nautilus.io/vthumuluri/aimd
@@ -47,12 +48,12 @@ spec:
           requests:
             cpu: "12"
             memory: "8Gi"
-            nvidia.com/gpu: 4
+            nvidia.com/gpu: 1
             ephemeral-storage: 10Gi
           limits:
             cpu: "12"
             memory: "8Gi"
-            nvidia.com/gpu: 4
+            nvidia.com/gpu: 1
             ephemeral-storage: 10Gi
         volumeMounts:
         - name: dshm
