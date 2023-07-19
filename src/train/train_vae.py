@@ -16,7 +16,7 @@ def train_vae(token_file, tokenizer, model_type="vae"):
     dm, model = get_dm_model(tokenizer=tokenizer, token_file=token_file, model_type=model_type)
 
     trainer = pl.Trainer(
-        accelerator="cpu", 
+        accelerator="gpu", 
         num_nodes=1,
         #max_epochs=18, 
         max_steps=5000,
