@@ -53,12 +53,12 @@ class VAE(pl.LightningModule):
     def loss_function(self, pred, target, mu, log_var, batch_size, p):
         nll = F.nll_loss(pred, target)
         kld = -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp()) / (batch_size * pred.shape[1])
-        return nll + p * kld, nll, kld
+        return 0.9*nll + p * kld, nll, kld
     
     def training_step(self, train_batch, batch_idx):
         out, z, mu, log_var = self(**train_batch)
-        p = 0.1 # 0.01 * (min((self.global_step % 1000) / 1000, 0.5)*2) # 0.01 #min(self.current_epoch/10, 0.1)  #0.1
-        loss, nll, kld = self.loss_function(out.reshape((-1, self.vocab_len)), train_batch["x"].flatten(), mu, log_var, len(train_batch), p)
+        p = 0.1 * (min((self.global_step % 1000) / 1000, 0.5)*2) # 0.01 #min(self.current_epoch/10, 0.1)  #0.1
+        loss, nll, kld = self.loss_function(out.reshape((-1, self.vocab_len)), train_batch["x"].flatten(), mu, log_var, len(train_batch["x"]), p)
         self.log('train_loss', loss)
         self.log('train_nll', nll)
         self.log('train_kld', kld)
@@ -66,8 +66,8 @@ class VAE(pl.LightningModule):
         
     def validation_step(self, val_batch, batch_idx):
         out, z, mu, log_var = self(**val_batch)
-        p = 0.1 # 0.01 * (min((self.global_step % 1000) / 1000, 0.5)*2) # 0.01 #min(self.current_epoch/10, 0.1)  #0.1
-        loss, nll, kld = self.loss_function(out.reshape((-1, self.vocab_len)), val_batch["x"].flatten(), mu, log_var, len(val_batch), p)
+        p = 0.1 * (min((self.global_step % 1000) / 1000, 0.5)*2) # 0.01 #min(self.current_epoch/10, 0.1)  #0.1
+        loss, nll, kld = self.loss_function(out.reshape((-1, self.vocab_len)), val_batch["x"].flatten(), mu, log_var, len(val_batch["x"]), p)
         self.log('val_loss', loss)
         self.log('val_nll', nll)
         self.log('val_kld', kld)

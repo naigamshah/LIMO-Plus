@@ -21,7 +21,6 @@ def train_property_predictor(
     protein_file='data/1err/1err.maps.fld'
 ):
     exp_suffix = tokenizer
-    print(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{exp_suffix}: Train PP", flush=True, file=open(f"temp/log_file_{exp_suffix}.txt", "a+"))
     
     if torch.cuda.is_available():
         device = torch.device("cuda")

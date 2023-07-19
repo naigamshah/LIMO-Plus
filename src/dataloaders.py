@@ -31,12 +31,12 @@ class MolDataModule(pl.LightningDataModule):
         self.batch_size = batch_size
         self.dataset = TokenizedDataset(file, tokenizer, conditional)
         self.train_data, self.test_data = random_split(self.dataset, [int(round(len(self.dataset) * 0.8)), int(round(len(self.dataset) * 0.2))])
-    
+        print(f"DM len {len(self.dataset)}, Train size: {len(self.train_data)}, val size: {len(self.test_data)}")
     def train_dataloader(self):
-        return DataLoader(self.train_data, batch_size=self.batch_size, shuffle=True, drop_last=False, num_workers=NUM_WORKERS, pin_memory=True)
+        return DataLoader(self.train_data, batch_size=self.batch_size, shuffle=True, drop_last=True, num_workers=NUM_WORKERS, pin_memory=True)
     
     def val_dataloader(self):
-        return DataLoader(self.test_data, batch_size=self.batch_size, drop_last=False, num_workers=NUM_WORKERS, pin_memory=True)
+        return DataLoader(self.test_data, batch_size=self.batch_size, drop_last=True, num_workers=NUM_WORKERS, pin_memory=True)
     
     
 class PropDataModule(pl.LightningDataModule):

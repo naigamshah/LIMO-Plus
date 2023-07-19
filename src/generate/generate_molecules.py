@@ -66,8 +66,7 @@ def generate_molecules(
     
     exp_suffix = tokenizer #"gs_zinc"
     print(f"Generating using {exp_suffix}")
-    print(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{exp_suffix}:{model_type} Generating molecules", flush=True, file=open(f"temp/log_file_{exp_suffix}.txt", "a+"))
-
+    
     if torch.cuda.is_available():
         device = torch.device("cuda")
         num_devices = torch.cuda.device_count()

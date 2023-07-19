@@ -23,9 +23,12 @@ def main():
     
     tokenizer = args.config
     token_file = TOKENIZER_CONFIGS[args.config]["token_file"]
+    log_file = f"temp/log_file_{exp_suffix}.txt"
+    open(log_file, "w")
     
     # train VAE
     if start_stage <= 0:
+        print(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{exp_suffix}: Train VAE", flush=True, file=open(log_file, "a+"))
         train_vae(token_file=token_file, tokenizer=tokenizer, model_type=model_type)
         # result = subprocess.run(["python", "src/train/train_vae.py", f"--tokenizer {tokenizer} --token_file {token_file}"], check=True)
         # os.system(f"python src/train/train_vae.py --tokenizer {tokenizer} --token_file {token_file}")
@@ -33,6 +36,7 @@ def main():
     # train property predictors
 
     if start_stage <= 1 and end_stage > 1:
+        print(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{exp_suffix}:{model_type} Training PP", flush=True, file=open(log_file, "a+"))
         for prop_vals in [("binding_affinity", 10000)]:
             train_property_predictor(
                 token_file=token_file, 
@@ -60,12 +64,14 @@ def main():
         
     # generate molecules
     if start_stage <= 2 and end_stage > 2:
+        print(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{exp_suffix}:{model_type} Generating molecules", flush=True, file=open(log_file, "a+"))
         generate_molecules(token_file=token_file, tokenizer=tokenizer, model_type=model_type, opt_prop="binding_affinity", sa_cutoff=11, qed_cutoff=-1)
         # result = subprocess.run(["python", "src/generate/generate_molecules.py", f"--tokenizer {tokenizer} --token_file {token_file}"], check=True)
         # os.system(f"python src/generate/generate_molecules.py --tokenizer {tokenizer} --token_file {token_file}")
         # 
 
     if start_stage <= 3 and end_stage > 3:
+        print(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{exp_suffix}:{model_type} Generating random molecules", flush=True, file=open(log_file, "a+"))
         generate_random_molecules(token_file=token_file, tokenizer=tokenizer, model_type=model_type, num_mols=5000)
 
 
