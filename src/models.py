@@ -47,7 +47,7 @@ class VAE(pl.LightningModule):
         return self.decode(z), z, mu, log_var
     
     def configure_optimizers(self):
-        optimizer = optim.AdamW(self.parameters(), lr=0.0001, weight_decay=0.1)
+        optimizer = optim.Adam(self.parameters(), lr=0.0001)
         return {'optimizer': optimizer}
     
     def loss_function(self, pred, target, mu, log_var, batch_size, p):
@@ -57,7 +57,7 @@ class VAE(pl.LightningModule):
     
     def training_step(self, train_batch, batch_idx):
         out, z, mu, log_var = self(**train_batch)
-        p = 0.01 * (min((self.global_step % 1000) / 1000, 0.5)*2) # 0.01 #min(self.current_epoch/10, 0.1)  #0.1
+        p = 0.1 # 0.01 * (min((self.global_step % 1000) / 1000, 0.5)*2) # 0.01 #min(self.current_epoch/10, 0.1)  #0.1
         loss, nll, kld = self.loss_function(out.reshape((-1, self.vocab_len)), train_batch["x"].flatten(), mu, log_var, len(train_batch), p)
         self.log('train_loss', loss)
         self.log('train_nll', nll)
@@ -66,7 +66,7 @@ class VAE(pl.LightningModule):
         
     def validation_step(self, val_batch, batch_idx):
         out, z, mu, log_var = self(**val_batch)
-        p = 0.01 * (min((self.global_step % 1000) / 1000, 0.5)*2) # 0.01 #min(self.current_epoch/10, 0.1)  #0.1
+        p = 0.1 # 0.01 * (min((self.global_step % 1000) / 1000, 0.5)*2) # 0.01 #min(self.current_epoch/10, 0.1)  #0.1
         loss, nll, kld = self.loss_function(out.reshape((-1, self.vocab_len)), val_batch["x"].flatten(), mu, log_var, len(val_batch), p)
         self.log('val_loss', loss)
         self.log('val_nll', nll)
@@ -226,7 +226,7 @@ class PropertyPredictor(pl.LightningModule):
         return self.fc(x)
     
     def configure_optimizers(self):
-        return optim.AdamW(self.parameters(), lr=self.learning_rate, weight_decay=0.1)
+        return optim.Adam(self.parameters(), lr=self.learning_rate)
     
     def loss_function(self, pred, real):
         return F.mse_loss(pred, real)
