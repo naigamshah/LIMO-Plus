@@ -19,7 +19,7 @@ def main():
     end_stage = args.end_stage
     model_type = args.model_type
     exp_suffix = args.config 
-    print(f"Training using {exp_suffix} model {model_type}, starting from stage {start_stage}")
+    print(f"Running limo using {exp_suffix} model {model_type}, starting from stage {start_stage}")
     
     tokenizer = args.config
     token_file = TOKENIZER_CONFIGS[args.config]["token_file"]
