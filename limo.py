@@ -28,7 +28,7 @@ def main():
     
     # train VAE
     if start_stage <= 0:
-        print(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{exp_suffix}: Train VAE", flush=True, file=open(log_file, "a+"))
+        print(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{exp_suffix}: Train {model_type}", flush=True, file=open(log_file, "a+"))
         train_vae(token_file=token_file, tokenizer=tokenizer, model_type=model_type)
         # result = subprocess.run(["python", "src/train/train_vae.py", f"--tokenizer {tokenizer} --token_file {token_file}"], check=True)
         # os.system(f"python src/train/train_vae.py --tokenizer {tokenizer} --token_file {token_file}")

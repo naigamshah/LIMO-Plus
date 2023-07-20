@@ -11,7 +11,7 @@ import datetime
 
 def train_vae(token_file, tokenizer, model_type="vae"):
     exp_suffix =  tokenizer
-    print(f"Train VAE using {exp_suffix}")
+    print(f"Train {model_type} using {exp_suffix}")
     
     dm, model = get_dm_model(tokenizer=tokenizer, token_file=token_file, model_type=model_type)
 

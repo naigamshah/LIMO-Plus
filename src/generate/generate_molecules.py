@@ -37,7 +37,7 @@ def generate_random_molecules(
     model.eval()
 
 
-    z = torch.randn((num_mols, 1024), device=device, requires_grad=True)
+    z = torch.randn((num_mols, 1024), device=device, requires_grad=False)
     with torch.no_grad():
         x = torch.exp(model.decode(z))
 
@@ -47,8 +47,8 @@ def generate_random_molecules(
     if not os.path.exists(f"gen_mols/random"):
         os.makedirs(f"gen_mols/random")
 
-    pickle.dump([smiles[i] for i in range(len(smiles))], 
-                  open(f"gen_mols/random/{model_type}_{exp_suffix}.pkl", "wb"))
+    # pickle.dump([smiles[i] for i in range(len(smiles))], 
+    #               open(f"gen_mols/random/{model_type}_{exp_suffix}.pkl", "wb"))
 
 def generate_molecules(
     token_file,

@@ -80,9 +80,9 @@ class cVAE(VAE):
         super().__init__(max_len, vocab_len, latent_dim, embedding_dim)
 
         self.embedding = nn.Embedding(vocab_len, embedding_dim, padding_idx=0)
-        self.encoder = nn.Sequential(nn.Linear((max_len+2) * embedding_dim, 2000),
-                                     nn.ReLU(),
-                                     nn.Linear(2000, 1000),
+        self.inp_encoder = nn.Linear(max_len*embedding_dim, 2000)
+        self.encoder = nn.Sequential(#nn.Linear((max_len+2) * embedding_dim, 2000),
+                                     nn.Linear(2000 + 2*embedding_dim, 1000),
                                      nn.BatchNorm1d(1000),
                                      nn.ReLU(),
                                      nn.Linear(1000, 1000),
@@ -114,13 +114,14 @@ class cVAE(VAE):
         ))
 
     def encode(self, x, sa, qed):
-        inp_emb = torch.cat([
+        x = self.inp_encoder(self.embedding(x).view((len(x), -1)))
+        enc_inp_emb = torch.cat([
                 self.cond_emb.qed(qed), 
                 self.cond_emb.sa(sa),  
-                self.embedding(x).view((len(x), -1))],
+                x],
             dim=1
         )
-        x = self.encoder(inp_emb).view((-1, 2, self.latent_dim))
+        x = self.encoder(enc_inp_emb).view((-1, 2, self.latent_dim))
         mu, log_var = x[:, 0, :], x[:, 1, :]
         std = torch.exp(0.5 * log_var)
         eps = torch.randn_like(std)
@@ -131,13 +132,13 @@ class cVAE(VAE):
             sa = torch.ones(z.shape[0], 1, device=z.device) * 0.2
         if qed is None:
             qed = torch.ones(z.shape[0], 1, device=z.device) * 0.8
-        inp_emb = torch.cat([
+        dec_inp_emb = torch.cat([
                 self.cond_emb.qed(qed), 
                 self.cond_emb.sa(sa),  
                 z],
             dim=1
         )
-        return F.log_softmax(self.decoder(inp_emb).view((-1, self.max_len, self.vocab_len)), dim=2).view((-1, self.max_len * self.vocab_len))
+        return F.log_softmax(self.decoder(dec_inp_emb).view((-1, self.max_len, self.vocab_len)), dim=2).view((-1, self.max_len * self.vocab_len))
     
     def forward(self, x, sa, qed):
         z, mu, log_var = self.encode(x, sa, qed)

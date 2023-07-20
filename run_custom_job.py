@@ -18,7 +18,7 @@ f'''
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: vthumuluri-job-{config.replace("_","-")}
+  name: vthumuluri-job-{config.replace("_","-")}-{model_type}
   namespace: ai-md
   labels:
     user: vthumuluri
@@ -32,10 +32,10 @@ spec:
             nodeSelectorTerms:
             - matchExpressions:
               - key: nvidia.com/gpu.product
-                operator: NotIn
+                operator: In
                 values:
-                - NVIDIA-A10
-                #- NVIDIA-GeForce-RTX-2080-Ti
+                #- NVIDIA-A10
+                - NVIDIA-GeForce-RTX-2080-Ti
       containers:
       - name: gpu-container
         image: gitlab-registry.nrp-nautilus.io/vthumuluri/aimd

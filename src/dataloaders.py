@@ -78,7 +78,7 @@ class TokenizedDataset(Dataset):
             else:
                 os.makedirs("data/properties/", exist_ok=True)
                 props = json.load(open("data/zinc250k.json","r"))
-                prop_dict = {s:props[CanonSmiles(tokenizer.decoder(s))] for s in selfies}
+                prop_dict = {tokenizer.encoder(k):v for k,v in tqdm(props.items(), desc="generating prop dict")}
                 json.dump(prop_dict, open(prop_file, "w+"))
                 self.props = [prop_dict[s] for s in selfies]
         print(f"Alphabet len is {len(self.alphabet)}, max len is {self.max_len}")
