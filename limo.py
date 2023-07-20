@@ -65,7 +65,15 @@ def main():
     # generate molecules
     if start_stage <= 2 and end_stage > 2:
         print(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{exp_suffix}:{model_type} Generating molecules", flush=True, file=open(log_file, "a+"))
-        generate_molecules(token_file=token_file, tokenizer=tokenizer, model_type=model_type, opt_prop="binding_affinity", sa_cutoff=11, qed_cutoff=-1)
+        if model_type == "vae":
+            opt_prop = "multi_objective_binding_affinity"
+            sa_cut_off = 5.5
+            qed_cut_off = 0.4
+        else:
+            opt_prop = "binding_affinity"
+            sa_cut_off = 11
+            qed_cut_off = -1
+        generate_molecules(token_file=token_file, tokenizer=tokenizer, model_type=model_type, opt_prop=opt_prop, sa_cutoff=sa_cut_off, qed_cutoff=qed_cut_off)
         # result = subprocess.run(["python", "src/generate/generate_molecules.py", f"--tokenizer {tokenizer} --token_file {token_file}"], check=True)
         # os.system(f"python src/generate/generate_molecules.py --tokenizer {tokenizer} --token_file {token_file}")
         # 
