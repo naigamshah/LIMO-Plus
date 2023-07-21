@@ -47,8 +47,8 @@ def generate_random_molecules(
     if not os.path.exists(f"gen_mols/random"):
         os.makedirs(f"gen_mols/random")
 
-    # pickle.dump([smiles[i] for i in range(len(smiles))], 
-    #               open(f"gen_mols/random/{model_type}_{exp_suffix}.pkl", "wb"))
+    pickle.dump([smiles[i] for i in range(len(smiles))], 
+                  open(f"gen_mols/random/{model_type}_{exp_suffix}.pkl", "wb"))
 
 def generate_molecules(
     token_file,

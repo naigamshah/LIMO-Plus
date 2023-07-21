@@ -141,7 +141,7 @@ class cVAE(VAE):
         z, mu, log_var = self.encode(x, sa, qed)
         return self.decode(z, sa, qed), z, mu, log_var
 
-class cTransformerVAE(cVAE):
+class cVAEFormer(cVAE):
     def __init__(self, max_len, vocab_len, latent_dim, embedding_dim):
         super().__init__()
         self.latent_dim = latent_dim
@@ -151,9 +151,9 @@ class cTransformerVAE(cVAE):
         self.inp_emb = nn.Embedding(vocab_len, embedding_dim)
         self.lm_head = nn.Linear(embedding_dim, vocab_len, bias=False)
         self.inp_emb.weight = self.lm_head.weight # weight tying
-        self.time_emb = nn.Embedding(max_len, embedding_dim)
+        self.time_emb = nn.Parameter(torch.zeros(1, max_len, embedding_dim))
 
-        self.z_emb = torch.zeros(1, embedding_dim)
+        self.z_emb = nn.Parameter(torch.zeros(1, embedding_dim))
         self.cond_emb = nn.ModuleDict(dict(
             sa=nn.Sequential(
                 nn.Linear(1, embedding_dim), 
@@ -192,20 +192,29 @@ class cTransformerVAE(cVAE):
             num_layers=4
         )
         sz = self.max_len
-        mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
-        mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
-        self.register_buffer("mask", mask)
 
-    def encode(self, x):
-        raise NotImplementedError()
-        x = self.encoder(self.embedding(x).view((len(x), -1))).view((-1, 2, self.latent_dim))
+        decoder_mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
+        decoder_mask = decoder_mask.float().masked_fill(decoder_mask == 0, float('-inf')).masked_fill(decoder_mask == 1, float(0.0))
+        self.register_buffer("decoder_mask", decoder_mask)
+
+    def encode(self, x, sa, qed):
+        x = self.inp_emb(x) + self.time_emb
+        enc_inp_emb = torch.cat([
+                self.z_emb,  
+                self.cond_emb.qed(qed), 
+                self.cond_emb.sa(sa),
+                x],
+            dim=1
+        )
+
+        src_key_mask = torch.stack([row != 0 for row in x], dim=0).bool()
+        x = self.encoder(enc_inp_emb)
         mu, log_var = x[:, 0, :], x[:, 1, :]
         std = torch.exp(0.5 * log_var)
         eps = torch.randn_like(std)
         return mu + eps * std, mu, log_var
     
     def decode(self, x):
-        raise NotImplementedError()
         return F.log_softmax(self.decoder(x).view((-1, self.max_len, self.vocab_len)), dim=2).view((-1, self.max_len * self.vocab_len))
     
     
