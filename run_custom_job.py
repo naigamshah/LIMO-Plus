@@ -5,12 +5,14 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-r", "--run_type", type=str)
 parser.add_argument("-c", "--config", type=str)
 parser.add_argument("-m", "--model_type", type=str)
-parser.add_argument("-s", "--stage", type=int)
+parser.add_argument("-s", "--start_stage", type=int)
+parser.add_argument("-e", "--end_stage", type=int)
 args = parser.parse_args()
 
 run_type = args.run_type
 config:str = args.config
-stage:int = args.stage
+start_stage:int = args.start_stage
+end_stage:int = args.end_stage
 model_type:str = args.model_type
 
 yaml_config = \
@@ -43,7 +45,7 @@ spec:
           - "sh"
           - "-c"
         args:
-          - "cd /home/AIMD && conda init && . /opt/conda/etc/profile.d/conda.sh && conda activate pytorch && python limo.py --config {config} --start_stage {stage} --model_type {model_type}"
+          - "cd /home/AIMD && conda init && . /opt/conda/etc/profile.d/conda.sh && conda activate pytorch && python limo.py --config {config} --start_stage {start_stage} --end_stage {end_stage} --model_type {model_type}"
         resources:
           requests:
             cpu: "12"

@@ -3,6 +3,7 @@ import torch
 from torch import nn
 from torch import optim
 import torch.nn.functional as F
+from src.constants import *
 
 
 class VAE(pl.LightningModule):
@@ -102,14 +103,10 @@ class cVAE(VAE):
         
         self.cond_emb = nn.ModuleDict(dict(
             sa=nn.Sequential(
-                nn.Linear(1, embedding_dim*2), 
-                nn.ReLU(), 
-                nn.Linear(embedding_dim*2, embedding_dim)
+                nn.Linear(1, embedding_dim)
                 ),
             qed=nn.Sequential(
-                nn.Linear(1, embedding_dim*2), 
-                nn.ReLU(), 
-                nn.Linear(embedding_dim*2, embedding_dim)
+                nn.Linear(1, embedding_dim)
                 ),
         ))
 
@@ -129,9 +126,9 @@ class cVAE(VAE):
     
     def decode(self, z, sa=None, qed=None):
         if sa is None:
-            sa = torch.ones(z.shape[0], 1, device=z.device) * 0.2
+            sa = (torch.ones(z.shape[0], 1, device=z.device) * SA_TARGET -  SA_MEAN) / SA_STD 
         if qed is None:
-            qed = torch.ones(z.shape[0], 1, device=z.device) * 0.8
+            qed = (torch.ones(z.shape[0], 1, device=z.device) * QED_TARGET - QED_MEAN) / QED_STD
         dec_inp_emb = torch.cat([
                 self.cond_emb.qed(qed), 
                 self.cond_emb.sa(sa),  

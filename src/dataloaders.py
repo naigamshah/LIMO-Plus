@@ -92,8 +92,8 @@ class TokenizedDataset(Dataset):
             "x": torch.tensor(self.encodings[i] + [self.symbol_to_idx['[nop]'] for _ in range(self.max_len - len(self.encodings[i]))]),
         }
         if self.conditional:
-            item["sa"] = torch.tensor([self.props[i]["sa"]]) / SA_SCALING
-            item["qed"]= torch.tensor([self.props[i]["qed"]]) / QED_SCALING
+            item["sa"] = (torch.tensor([self.props[i]["sa"]]) - SA_MEAN) / SA_STD
+            item["qed"]= (torch.tensor([self.props[i]["qed"]]) - QED_MEAN) / QED_STD
         return item
     
     def smiles_to_indices(self, smiles):
