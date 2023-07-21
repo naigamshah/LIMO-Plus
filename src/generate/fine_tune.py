@@ -38,7 +38,7 @@ def finetune(
         tests *= 10
         affins = smiles_to_affinity(tests, autodock_executable, protein_file, 1)
         base = tests[np.argmin(affins)]
-        print(delta_g_to_kd(min(affins)), base)
+        print(delta_g_to_kd(min(affins)), base, flush=open("finetune_results.txt", "a+"))
         time.sleep(2)
 
 if __name__ == "__main__":
