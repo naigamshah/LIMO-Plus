@@ -19,7 +19,12 @@ def finetune(
 ):
     print(f"Starting with {smiles}")
     base = smiles
+    max_counter = 100
+    counter = 0
     while True:
+        counter += 1
+        if counter > max_counter:
+            break
         tests = [base]
         for i in range(len(base)):
             if base[i] == 'C':
