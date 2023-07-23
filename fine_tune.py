@@ -17,6 +17,7 @@ def finetune(
     autodock_executable='../AutoDock-GPU/bin/autodock_gpu_64wi',
     protein_file='data/1err/1err.maps.fld'
 ):
+    print(f"Starting with {smiles}")
     base = smiles
     while True:
         tests = [base]
@@ -44,8 +45,8 @@ def finetune(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--smiles', type=str)
-    parser.add_argument('--autodock_executable', type=str, default='../AutoDock-GPU/bin/autodock_gpu_64wi')
-    parser.add_argument('--protein_file', type=str, default='1err/1err.maps.fld')
+    parser.add_argument('--autodock_executable', type=str, default='../AutoDock-GPU/bin/autodock_gpu_128wi')
+    parser.add_argument('--protein_file', type=str, default='data/1err/1err.maps.fld')
     args = parser.parse_args()
 
     finetune(

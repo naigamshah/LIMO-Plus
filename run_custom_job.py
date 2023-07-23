@@ -6,7 +6,7 @@ parser.add_argument("-r", "--run_type", type=str)
 parser.add_argument("-c", "--config", type=str)
 parser.add_argument("-m", "--model_type", type=str)
 parser.add_argument("-s", "--start_stage", type=int)
-parser.add_argument("-e", "--end_stage", type=int)
+parser.add_argument("-e", "--end_stage", type=int, default=10)
 args = parser.parse_args()
 
 run_type = args.run_type
