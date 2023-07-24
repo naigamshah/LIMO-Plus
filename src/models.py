@@ -4,7 +4,31 @@ from torch import nn
 from torch import optim
 import torch.nn.functional as F
 from src.constants import *
+import functools
+import math
 
+def _cosine_decay_warmup(iteration, warmup_iterations, total_iterations, min_mult):
+    """
+    Linear warmup from 0 --> 1.0, then decay using cosine decay to 0.1
+    """
+    if iteration <= warmup_iterations:
+        multiplier = iteration / warmup_iterations
+    else:
+        if iteration >= total_iterations:
+            multiplier = min_mult
+        else:
+            multiplier = (iteration - warmup_iterations) / (total_iterations - warmup_iterations)
+            multiplier = max(min_mult, 0.5 * (1 + math.cos(math.pi * multiplier)))
+    return multiplier
+
+
+def CosineAnnealingLRWarmup(optimizer, T_max, T_warmup, min_mult=0.01):
+    _decay_func = functools.partial(
+        _cosine_decay_warmup,
+        warmup_iterations=T_warmup, total_iterations=T_max, min_mult=min_mult
+    )
+    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, _decay_func)
+    return scheduler
 
 class VAE(pl.LightningModule):
     def __init__(self, max_len, vocab_len, latent_dim, embedding_dim):
@@ -51,10 +75,17 @@ class VAE(pl.LightningModule):
         optimizer = optim.Adam(self.parameters(), lr=0.0001)
         return {'optimizer': optimizer}
     
+    def configure_optimizers(self):
+        optimizer = optim.Adam(self.parameters(), lr=0.0001)
+        scheduler = CosineAnnealingLRWarmup(
+            optimizer, T_max=50000, T_warmup=100, min_mult=0.01)
+        return [optimizer], [{"scheduler": scheduler, "interval": "step"}]
+
+    
     def loss_function(self, pred, target, mu, log_var, batch_size, p):
         nll = F.nll_loss(pred, target)
         kld = -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp()) / (batch_size * pred.shape[1])
-        return 0.9*nll + p * kld, nll, kld
+        return nll + p * kld, nll, kld
     
     def training_step(self, train_batch, batch_idx):
         out, z, mu, log_var = self(**train_batch)
@@ -154,20 +185,13 @@ class cVAEFormer(cVAE):
         self.time_emb = nn.Parameter(torch.zeros(1, max_len, embedding_dim))
 
         self.z_emb = nn.Parameter(torch.zeros(1, embedding_dim))
+        self.reparametrize = nn.Linear(embedding_dim, latent_dim*2)
         self.cond_emb = nn.ModuleDict(dict(
             sa=nn.Sequential(
-                nn.Linear(1, embedding_dim), 
-                nn.ReLU(), 
-                nn.Linear(embedding_dim, embedding_dim*4),
-                nn.ReLU(), 
-                nn.Linear(embedding_dim*4, embedding_dim)
+                nn.Linear(1, embedding_dim)
                 ),
             qed=nn.Sequential(
-                nn.Linear(1, embedding_dim), 
-                nn.ReLU(), 
-                nn.Linear(embedding_dim, embedding_dim*4),
-                nn.ReLU(), 
-                nn.Linear(embedding_dim*4, embedding_dim)
+                nn.Linear(1, embedding_dim)
                 )
         ))
 
@@ -193,11 +217,14 @@ class cVAEFormer(cVAE):
         )
         sz = self.max_len
 
+
+        self.tgt_emb = nn.Parameter(torch.zeros(1, max_len, embedding_dim))
         decoder_mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
         decoder_mask = decoder_mask.float().masked_fill(decoder_mask == 0, float('-inf')).masked_fill(decoder_mask == 1, float(0.0))
         self.register_buffer("decoder_mask", decoder_mask)
 
     def encode(self, x, sa, qed):
+        src_key_mask = torch.stack([row != 0 for row in x], dim=0).bool()
         x = self.inp_emb(x) + self.time_emb
         enc_inp_emb = torch.cat([
                 self.z_emb,  
@@ -207,15 +234,26 @@ class cVAEFormer(cVAE):
             dim=1
         )
 
-        src_key_mask = torch.stack([row != 0 for row in x], dim=0).bool()
-        x = self.encoder(enc_inp_emb)
-        mu, log_var = x[:, 0, :], x[:, 1, :]
+        x = self.encoder(enc_inp_emb, src_key_mask=src_key_mask)
+        mu, log_var = x[:, 0, :self.latent_dim], x[:, 0, self.latent_dim:]
         std = torch.exp(0.5 * log_var)
         eps = torch.randn_like(std)
         return mu + eps * std, mu, log_var
     
-    def decode(self, x):
-        return F.log_softmax(self.decoder(x).view((-1, self.max_len, self.vocab_len)), dim=2).view((-1, self.max_len * self.vocab_len))
+    def decode(self, z, sa=None, qed=None):
+        if sa is None:
+            sa = (torch.ones(z.shape[0], 1, device=z.device) * SA_TARGET -  SA_MEAN) / SA_STD 
+        if qed is None:
+            qed = (torch.ones(z.shape[0], 1, device=z.device) * QED_TARGET - QED_MEAN) / QED_STD
+        dec_inp_emb = torch.cat([
+                z,
+                self.cond_emb.qed(qed), 
+                self.cond_emb.sa(sa)],
+            dim=1
+        )
+        x = self.decoder(tgt=self.tgt_emb.repeat(z.shape[0], -1, -1), memory=dec_inp_emb)
+        x = self.lm_head(x)
+        return F.log_softmax(x).view((-1, self.max_len * self.vocab_len))
     
     
     
