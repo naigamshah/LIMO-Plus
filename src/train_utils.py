@@ -6,11 +6,26 @@ def get_dm_model(tokenizer, token_file, model_type="vae", load_from_ckpt=False):
     exp_suffix = tokenizer
     tokenizer_model = choose_tokenizer(tokenizer)
     token_loc = token_file
-    conditional=True if model_type == "cvae" else False
+
+    if model_type == "cvae":
+        modelClass = cVAE
+        conditional = True
+        latent_dim=1024
+        embedding_dim=64
+    elif model_type == "cvae_t":
+        modelClass = cVAEFormer
+        conditional = True
+        latent_dim=1024
+        embedding_dim=128
+    else: 
+        modelClass = VAE
+        conditional = False
+        latent_dim=1024
+        embedding_dim=64
+
     dm = MolDataModule(1024, token_loc, tokenizer_model, conditional=conditional)
-    modelClass = cVAE if conditional else VAE
     model = modelClass(max_len=dm.dataset.max_len, vocab_len=len(dm.dataset.symbol_to_idx), 
-        latent_dim=1024, embedding_dim=64)
+        latent_dim=latent_dim, embedding_dim=embedding_dim)
     
     if load_from_ckpt:
         model.load_state_dict(torch.load(f'{GEN_MODELS_SAVE}/{model_type}/{model_type}_{exp_suffix}.pt'))

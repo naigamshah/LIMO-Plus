@@ -64,7 +64,7 @@ class TokenizedDataset(Dataset):
         self.alphabet = set()
         for s in selfies:
             self.alphabet.update(sf.split_selfies(s))
-        self.alphabet = ['[nop]'] + list(sorted(self.alphabet))
+        self.alphabet = ['[pad]'] + ['[nop]'] + list(sorted(self.alphabet))
         self.max_len = max(len(list(sf.split_selfies(s))) for s in selfies)
         self.symbol_to_idx = {s: i for i, s in enumerate(self.alphabet)}
         self.idx_to_symbol = {i: s for i, s in enumerate(self.alphabet)}
@@ -89,7 +89,7 @@ class TokenizedDataset(Dataset):
     
     def __getitem__(self, i):
         item = {
-            "x": torch.tensor(self.encodings[i] + [self.symbol_to_idx['[nop]'] for _ in range(self.max_len - len(self.encodings[i]))]),
+            "x": torch.tensor(self.encodings[i] + [self.symbol_to_idx['[nop]']] + [self.symbol_to_idx['[pad]'] for _ in range(self.max_len - 1 - len(self.encodings[i]))]),
         }
         if self.conditional:
             item["sa"] = (torch.tensor([self.props[i]["sa"]]) - SA_MEAN) / SA_STD
@@ -98,7 +98,7 @@ class TokenizedDataset(Dataset):
     
     def smiles_to_indices(self, smiles):
         encoding = [self.symbol_to_idx[symbol] for symbol in sf.split_selfies(self.tokenizer.encoder(smiles))]
-        return torch.tensor(encoding + [self.symbol_to_idx['[nop]'] for i in range(self.max_len - len(encoding))])
+        return torch.tensor(encoding + [self.symbol_to_idx['[nop]']] + [self.symbol_to_idx['[pad]'] for i in range(self.max_len - len(encoding))])
 
     def smiles_to_one_hot(self, smiles):
         out = torch.zeros((self.max_len, len(self.symbol_to_idx)))
@@ -107,7 +107,7 @@ class TokenizedDataset(Dataset):
         return out.flatten()
    
     def one_hot_to_selfies(self, hot):
-        return ''.join([self.idx_to_symbol[idx.item()] for idx in hot.view((self.max_len, -1)).argmax(1)]).replace(' ', '')
+        return ''.join([self.idx_to_symbol[idx.item()] for idx in hot.view((self.max_len, -1)).argmax(1)]).split("[nop]")[0].replace(' ', '')
 
     def one_hot_to_smiles(self, hot):
         return self.tokenizer.decoder(self.one_hot_to_selfies(hot))
