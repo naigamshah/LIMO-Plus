@@ -261,7 +261,7 @@ class cVAEFormer(cVAE):
             x = self.decoder(
                 tgt=tgt, 
                 memory=dec_inp_emb, 
-                tgt_mask=self.decoder_mask[:-1,:-1])
+                tgt_mask=self.decoder_mask[:-1,:-1].to(self.device))
             x = self.lm_head(x)
             x[:,:,0] = float('-inf')
         else:
