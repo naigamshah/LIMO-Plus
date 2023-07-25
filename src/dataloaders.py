@@ -65,10 +65,10 @@ class TokenizedDataset(Dataset):
         for s in selfies:
             self.alphabet.update(sf.split_selfies(s))
         self.alphabet = ['[pad]'] + ['[nop]'] + list(sorted(self.alphabet))
-        self.max_len = max(len(list(sf.split_selfies(s))) for s in selfies)
+        self.max_len = max(len(list(sf.split_selfies(s)))+1 for s in selfies)
         self.symbol_to_idx = {s: i for i, s in enumerate(self.alphabet)}
         self.idx_to_symbol = {i: s for i, s in enumerate(self.alphabet)}
-        self.encodings = [[self.symbol_to_idx[symbol] for symbol in sf.split_selfies(s)] for s in selfies]
+        self.encodings = [([self.symbol_to_idx[symbol] for symbol in sf.split_selfies(s)] + [self.symbol_to_idx['[nop]']]) for s in selfies]
         self.conditional = conditional
         if conditional:
             prop_file = f'data/properties/{os.path.basename(file).replace(".txt", ".json")}'
@@ -89,7 +89,7 @@ class TokenizedDataset(Dataset):
     
     def __getitem__(self, i):
         item = {
-            "x": torch.tensor(self.encodings[i] + [self.symbol_to_idx['[nop]']] + [self.symbol_to_idx['[pad]'] for _ in range(self.max_len - 1 - len(self.encodings[i]))]),
+            "x": torch.tensor(self.encodings[i] + [self.symbol_to_idx['[pad]'] for _ in range(self.max_len - len(self.encodings[i]))]),
         }
         if self.conditional:
             item["sa"] = (torch.tensor([self.props[i]["sa"]]) - SA_MEAN) / SA_STD

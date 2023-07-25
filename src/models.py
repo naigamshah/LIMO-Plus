@@ -218,7 +218,7 @@ class cVAEFormer(cVAE):
             num_layers=4
         )
 
-        sz = self.max_len # start token
+        sz = self.max_len + 1 # start token
         self.dec_start_token = nn.Parameter(torch.zeros(1, self.embedding_dim))
         self.tgt_time_emb = nn.Parameter(torch.zeros(1, self.max_len, self.embedding_dim))
         decoder_mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
@@ -256,16 +256,16 @@ class cVAEFormer(cVAE):
         )
         if self.training:
             # teacher forcing
-            tgt = self.inp_emb(true_targets) + self.time_emb
+            tgt = self.inp_emb(true_targets[:, :-1]) + self.time_emb[:, :-1]
             tgt = torch.cat([self.dec_start_token.expand(z.size(0), -1,-1), tgt], dim=1)
             x = self.decoder(
                 tgt=tgt, 
                 memory=dec_inp_emb, 
-                tgt_key_padding_mask=self.decoder_mask)
+                tgt_mask=self.decoder_mask[:-1,:-1])
             x = self.lm_head(x)
             x[:,:,0] = float('-inf')
         else:
-            dec_tokens = [self.dec_start_token.expand(z.size(0), -1,-1)] 
+            dec_tokens = [self.dec_start_token.expand(z.size(0), -1).unsqueeze(1)] 
             dec_outputs = []
             assert len(self.decoder_mask.shape) == 2
             for i in range(self.max_len):
@@ -273,13 +273,18 @@ class cVAEFormer(cVAE):
                     tgt=torch.cat(dec_tokens, dim=1), 
                     memory=dec_inp_emb, 
                     tgt_mask=self.decoder_mask[:i+1, :i+1].to(self.device))
-                self.dec_logits = self.lm_head(x[:,-1,:])
-                self.dec_logits[:,0] = float('-inf')
-                dec_outputs.append(self.dec_logits)
-                dec_tokens.append(torch.argmax(self.dec_logits, dim=1).unsqueeze(1))
+                dec_logits = self.lm_head(x[:,-1,:])
+                dec_logits[:,0] = float('-inf')
+                dec_outputs.append(dec_logits)
+                next_token = self.inp_emb(torch.argmax(dec_logits, dim=1)).unsqueeze(1) + self.time_emb[:, i, :]
+                dec_tokens.append(next_token)
             x = torch.stack(dec_outputs, dim=1)
         
-        return F.log_softmax(x).view((-1, self.max_len * self.vocab_len))
+        return F.log_softmax(x, dim=-1).view((-1, self.max_len * self.vocab_len))
+    
+    def forward(self, x, sa, qed):
+        z, mu, log_var = self.encode(x, sa, qed)
+        return self.decode(z, sa, qed, x), z, mu, log_var
     
     
     
