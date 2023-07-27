@@ -184,9 +184,9 @@ class cVAEFormer(cVAE):
         self.inp_emb = nn.Embedding(self.vocab_len, self.embedding_dim)
         self.lm_head = nn.Linear(self.embedding_dim, self.vocab_len, bias=False)
         self.inp_emb.weight = self.lm_head.weight # weight tying
-        self.time_emb = nn.Parameter(torch.zeros(1, self.max_len, self.embedding_dim))
+        self.time_emb = nn.Parameter(0.02*torch.randn(1, self.max_len, self.embedding_dim))
 
-        self.z_emb = nn.Parameter(torch.zeros(1, self.embedding_dim))
+        self.z_emb = nn.Parameter(0.02*torch.randn(1, self.embedding_dim))
         self.reparametrize = nn.Linear(self.embedding_dim, self.embedding_dim*2)
         self.cond_emb = nn.ModuleDict(dict(
             sa=nn.Sequential(
@@ -219,8 +219,8 @@ class cVAEFormer(cVAE):
         )
 
         sz = self.max_len + 1 # start token
-        self.dec_start_token = nn.Parameter(torch.zeros(1, self.embedding_dim))
-        self.tgt_time_emb = nn.Parameter(torch.zeros(1, self.max_len, self.embedding_dim))
+        self.dec_start_token = nn.Parameter(0.02*torch.randn(1, self.embedding_dim))
+        # self.tgt_time_emb = nn.Parameter(0.02*torch.randn(1, self.max_len, self.embedding_dim))
         decoder_mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
         self.decoder_mask = decoder_mask.float().masked_fill(decoder_mask == 0, float('-inf')).masked_fill(decoder_mask == 1, float(0.0))
 
@@ -263,7 +263,7 @@ class cVAEFormer(cVAE):
                 memory=dec_inp_emb, 
                 tgt_mask=self.decoder_mask[:-1,:-1].to(self.device))
             x = self.lm_head(x)
-            x[:,:,0] = float('-inf')
+            #x[:,:,0] = float('-inf')
         else:
             dec_tokens = [self.dec_start_token.expand(z.size(0), -1).unsqueeze(1)] 
             dec_outputs = []

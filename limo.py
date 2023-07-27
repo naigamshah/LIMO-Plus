@@ -23,7 +23,7 @@ def main():
     
     tokenizer = args.config
     token_file = TOKENIZER_CONFIGS[args.config]["token_file"]
-    log_file = f"temp/log_file_{exp_suffix}.txt"
+    log_file = f"temp/log_file_{exp_suffix}_{model_type}.txt"
     open(log_file, "w")
     
     # train VAE
