@@ -222,7 +222,7 @@ class cVAEFormer(cVAE):
         self.dec_start_token = nn.Parameter(0.02*torch.randn(1, self.embedding_dim))
         # self.tgt_time_emb = nn.Parameter(0.02*torch.randn(1, self.max_len, self.embedding_dim))
         decoder_mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
-        self.decoder_mask = decoder_mask.float().masked_fill(decoder_mask == 0, float('-inf')).masked_fill(decoder_mask == 1, float(0.0))
+        self.decoder_mask = decoder_mask.bool() #decoder_mask.float().masked_fill(decoder_mask == 0, float('-inf')).masked_fill(decoder_mask == 1, float(0.0))
 
     def encode(self, x, sa, qed):
         src_key_mask = torch.stack([row != 0 for row in x], dim=0).bool()
