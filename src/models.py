@@ -225,12 +225,12 @@ class cVAEFormer(cVAE):
         decoder_mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
         decoder_mask = ~decoder_mask.bool() #decoder_mask.float().masked_fill(decoder_mask == 0, float('-inf')).masked_fill(decoder_mask == 1, float(0.0))
         self.register_buffer("decoder_mask", decoder_mask)
-        enc_prefix = torch.ones(1, 3, dtype=bool)
+        enc_prefix = torch.zeros(1, 3, dtype=bool)
         self.register_buffer("enc_prefix", enc_prefix)
 
     def encode(self, x, sa, qed):
         # src_key_mask = torch.stack([row != 0 for row in x], dim=0).bool()
-        src_key_mask = torch.cat([self.enc_prefix.expand(x.size(0), -1), x!=0],dim=1)
+        src_key_mask = torch.cat([self.enc_prefix.expand(x.size(0), -1), x==0],dim=1)
         x = self.inp_emb(x) + self.time_emb
         enc_inp_emb = torch.cat([
                 self.z_emb.unsqueeze(0).expand(x.size(0),-1,-1),  
