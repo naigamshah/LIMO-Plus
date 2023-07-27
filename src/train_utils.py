@@ -12,18 +12,21 @@ def get_dm_model(tokenizer, token_file, model_type="vae", load_from_ckpt=False):
         conditional = True
         latent_dim=1024
         embedding_dim=64
+        batch_size = 1024
     elif model_type == "cvae_t":
         modelClass = cVAEFormer
         conditional = True
         latent_dim=1024
         embedding_dim=128
+        batch_size = 256
     else: 
         modelClass = VAE
         conditional = False
         latent_dim=1024
         embedding_dim=64
+        batch_size = 1024
 
-    dm = MolDataModule(1024, token_loc, tokenizer_model, conditional=conditional)
+    dm = MolDataModule(batch_size, token_loc, tokenizer_model, conditional=conditional)
     model = modelClass(max_len=dm.dataset.max_len, vocab_len=len(dm.dataset.symbol_to_idx), 
         latent_dim=latent_dim, embedding_dim=embedding_dim)
     

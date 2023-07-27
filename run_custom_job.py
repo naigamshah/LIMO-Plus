@@ -36,8 +36,8 @@ spec:
               - key: nvidia.com/gpu.product
                 operator: In
                 values:
-                #- NVIDIA-A10
-                - NVIDIA-GeForce-RTX-2080-Ti
+                - NVIDIA-A10
+                #- NVIDIA-GeForce-RTX-2080-Ti
       containers:
       - name: gpu-container
         image: gitlab-registry.nrp-nautilus.io/vthumuluri/aimd

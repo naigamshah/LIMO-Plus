@@ -6,6 +6,7 @@ import torch.nn.functional as F
 from src.constants import *
 import functools
 import math
+torch.autograd.set_detect_anomaly(True)
 
 def _cosine_decay_warmup(iteration, warmup_iterations, total_iterations, min_mult):
     """
@@ -222,11 +223,14 @@ class cVAEFormer(cVAE):
         self.dec_start_token = nn.Parameter(0.02*torch.randn(1, self.embedding_dim))
         # self.tgt_time_emb = nn.Parameter(0.02*torch.randn(1, self.max_len, self.embedding_dim))
         decoder_mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
-        self.decoder_mask = decoder_mask.bool() #decoder_mask.float().masked_fill(decoder_mask == 0, float('-inf')).masked_fill(decoder_mask == 1, float(0.0))
+        decoder_mask = ~decoder_mask.bool() #decoder_mask.float().masked_fill(decoder_mask == 0, float('-inf')).masked_fill(decoder_mask == 1, float(0.0))
+        self.register_buffer("decoder_mask", decoder_mask)
+        enc_prefix = torch.ones(1, 3, dtype=bool)
+        self.register_buffer("enc_prefix", enc_prefix)
 
     def encode(self, x, sa, qed):
-        src_key_mask = torch.stack([row != 0 for row in x], dim=0).bool()
-        src_key_mask = torch.cat([torch.ones(x.size(0), 3, dtype=bool,device=x.device),src_key_mask],dim=1)
+        # src_key_mask = torch.stack([row != 0 for row in x], dim=0).bool()
+        src_key_mask = torch.cat([self.enc_prefix.expand(x.size(0), -1), x!=0],dim=1)
         x = self.inp_emb(x) + self.time_emb
         enc_inp_emb = torch.cat([
                 self.z_emb.unsqueeze(0).expand(x.size(0),-1,-1),  
@@ -254,14 +258,14 @@ class cVAEFormer(cVAE):
                 self.cond_emb.sa(sa).unsqueeze(1)],
             dim=1
         )
-        if self.training:
+        if true_targets is not None:
             # teacher forcing
             tgt = self.inp_emb(true_targets[:, :-1]) + self.time_emb[:, :-1]
             tgt = torch.cat([self.dec_start_token.expand(z.size(0), -1,-1), tgt], dim=1)
             x = self.decoder(
                 tgt=tgt, 
                 memory=dec_inp_emb, 
-                tgt_mask=self.decoder_mask[:-1,:-1].to(self.device))
+                tgt_mask=self.decoder_mask[:-1,:-1])
             x = self.lm_head(x)
             #x[:,:,0] = float('-inf')
         else:
@@ -272,14 +276,13 @@ class cVAEFormer(cVAE):
                 x = self.decoder(
                     tgt=torch.cat(dec_tokens, dim=1), 
                     memory=dec_inp_emb, 
-                    tgt_mask=self.decoder_mask[:i+1, :i+1].to(self.device))
+                    tgt_mask=self.decoder_mask[:i+1, :i+1])
                 dec_logits = self.lm_head(x[:,-1,:])
                 dec_logits[:,0] = float('-inf')
                 dec_outputs.append(dec_logits)
                 next_token = self.inp_emb(torch.argmax(dec_logits, dim=1)).unsqueeze(1) + self.time_emb[:, i, :]
                 dec_tokens.append(next_token)
             x = torch.stack(dec_outputs, dim=1)
-        
         return F.log_softmax(x, dim=-1).view((-1, self.max_len * self.vocab_len))
     
     def forward(self, x, sa, qed):
