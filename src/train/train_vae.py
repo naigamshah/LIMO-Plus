@@ -21,7 +21,7 @@ def train_vae(token_file, tokenizer, model_type="vae"):
         #max_epochs=18, 
         max_steps=50000,
         enable_checkpointing=False,
-        logger=pl.loggers.CSVLogger(f'temp/logs_{model_type}_{exp_suffix}'),
+        logger=pl.loggers.CSVLogger(f'temp/logs/{model_type}_{exp_suffix}'),
         callbacks=[
             pl.callbacks.TQDMProgressBar(refresh_rate=500),
             # pl.callbacks.ModelCheckpoint(

@@ -76,7 +76,7 @@ def train_property_predictor(
         num_nodes=1,
         max_epochs=5,  
         enable_checkpointing=False, 
-        logger=pl.loggers.CSVLogger('temp/logs'),
+        logger=pl.loggers.CSVLogger(f'temp/logs/{model_type}/{prop}_{exp_suffix}'),
         callbacks=[
             pl.callbacks.TQDMProgressBar(refresh_rate=500),
         ])
