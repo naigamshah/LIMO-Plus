@@ -109,7 +109,7 @@ def generate_molecules(
                 loss.backward()
                 optimizer.step()
                 losses.append(loss.item())
-            zs.append(z)
+            zs.append(z.detach())
         return torch.cat(zs, dim=0)
 
 
