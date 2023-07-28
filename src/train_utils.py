@@ -16,7 +16,7 @@ def get_dm_model(tokenizer, token_file, model_type="vae", load_from_ckpt=False):
     elif model_type == "cvae_t":
         modelClass = cVAEFormer
         conditional = True
-        latent_dim=1024
+        latent_dim=128
         embedding_dim=128
         batch_size = 256
     else: 

@@ -49,7 +49,7 @@ def train_property_predictor(
                 num_chunks += 1
             idx = range(0, num_mols)
             for i in range(num_chunks):
-                z = torch.randn((len(idx[i*MAX_MOLS_CHUNK:(i+1)*MAX_MOLS_CHUNK]), 1024), device=device)
+                z = torch.randn((len(idx[i*MAX_MOLS_CHUNK:(i+1)*MAX_MOLS_CHUNK]), model.latent_dim), device=device)
                 xs.append(torch.exp(model.decode(z)))
 
             x = torch.cat(xs, dim=0)
