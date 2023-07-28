@@ -37,7 +37,7 @@ def generate_random_molecules(
     model.eval()
 
 
-    z = torch.randn((num_mols, 1024), device=device, requires_grad=False)
+    z = torch.randn((num_mols, model.latent_dim), device=device, requires_grad=False)
     with torch.no_grad():
         x = torch.exp(model.decode(z))
 
@@ -89,7 +89,7 @@ def generate_molecules(
             models.append(PropertyPredictor(dm.dataset.max_len * len(dm.dataset.symbol_to_idx)))
             models[-1].load_state_dict(torch.load(f'{PROP_MODELS_SAVE}/{model_type}/{prop_name}_{exp_suffix}.pt', map_location="cpu"))
             models[-1] = models[-1].to(device)
-        z = torch.randn((num_mols, 1024), device=device, requires_grad=True)
+        z = torch.randn((num_mols, gen_model.latent_dim), device=device, requires_grad=True)
         optimizer = optim.Adam([z], lr=0.1)
         losses = []
         for epoch in tqdm(range(num_steps), desc='generating molecules'):
