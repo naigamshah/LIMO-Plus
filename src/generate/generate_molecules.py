@@ -89,20 +89,28 @@ def generate_molecules(
             models.append(PropertyPredictor(dm.dataset.max_len * len(dm.dataset.symbol_to_idx)))
             models[-1].load_state_dict(torch.load(f'{PROP_MODELS_SAVE}/{model_type}/{prop_name}_{exp_suffix}.pt', map_location="cpu"))
             models[-1] = models[-1].to(device)
-        z = torch.randn((num_mols, gen_model.latent_dim), device=device, requires_grad=True)
-        optimizer = optim.Adam([z], lr=0.1)
-        losses = []
-        for epoch in tqdm(range(num_steps), desc='generating molecules'):
-            optimizer.zero_grad()
-            loss = 0
-            probs = torch.exp(gen_model.decode(z))
-            for i, model in enumerate(models):
-                out = model(probs)
-                loss += torch.sum(out) * list(weights.values())[i]
-            loss.backward()
-            optimizer.step()
-            losses.append(loss.item())
-        return z
+        
+        num_chunks = num_mols // MAX_MOLS_CHUNK 
+        if num_mols % MAX_MOLS_CHUNK != 0:
+            num_chunks += 1
+        idx = range(0, num_mols)
+        zs = []
+        for i in range(num_chunks):
+            z = torch.randn((len(idx[i*MAX_MOLS_CHUNK:(i+1)*MAX_MOLS_CHUNK]), gen_model.latent_dim), device=device, requires_grad=True)
+            optimizer = optim.Adam([z], lr=0.1)
+            losses = []
+            for epoch in tqdm(range(num_steps), desc='generating molecules'):
+                optimizer.zero_grad()
+                loss = 0
+                probs = torch.exp(gen_model.decode(z))
+                for i, model in enumerate(models):
+                    out = model(probs)
+                    loss += torch.sum(out) * list(weights.values())[i]
+                loss.backward()
+                optimizer.step()
+                losses.append(loss.item())
+            zs.append(z)
+        return torch.cat(zs, dim=0)
 
 
     def get_prop(prop, x):
