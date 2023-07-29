@@ -35,7 +35,7 @@ class LIMO:
             embedding_dim=64
             batch_size = 1024
             prop_dim = latent_dim
-            wpad = True
+            autoreg = False
         elif self.model_type == "cvae_t":
             modelClass = VAEFormer
             conditional = True
@@ -43,7 +43,7 @@ class LIMO:
             embedding_dim=128
             batch_size = 256
             prop_dim = latent_dim
-            wpad = True
+            autoreg = False
         elif self.model_type == "vae_t":
             modelClass = VAEFormer
             conditional = False
@@ -51,7 +51,7 @@ class LIMO:
             embedding_dim=128
             batch_size = 256
             prop_dim = latent_dim
-            wpad = True
+            autoreg = False
         else: 
             modelClass = VAE
             conditional = False
@@ -59,9 +59,9 @@ class LIMO:
             embedding_dim=64
             batch_size = 1024
             prop_dim = latent_dim
-            wpad = False
+            autoreg = False
 
-        dm = MolDataModule(batch_size, token_loc, tokenizer_model, conditional=conditional, wpad=wpad)
+        dm = MolDataModule(batch_size, token_loc, tokenizer_model, conditional=conditional, wpad=autoreg)
         model = modelClass(max_len=dm.dataset.max_len, vocab_len=len(dm.dataset.symbol_to_idx), 
             latent_dim=latent_dim, embedding_dim=embedding_dim)
         

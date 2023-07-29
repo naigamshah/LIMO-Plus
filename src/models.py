@@ -32,12 +32,13 @@ def CosineAnnealingLRWarmup(optimizer, T_max, T_warmup, min_mult=0.01):
     return scheduler
 
 class VAE(pl.LightningModule):
-    def __init__(self, max_len, vocab_len, latent_dim, embedding_dim):
+    def __init__(self, max_len, vocab_len, latent_dim, embedding_dim, autoreg=False):
         super(VAE, self).__init__()
         self.latent_dim = latent_dim
         self.max_len = max_len
         self.vocab_len = vocab_len
         self.embedding_dim = embedding_dim
+        self.autoreg = autoreg
         self.init_modules()  
     
     def init_modules(self):
@@ -87,7 +88,10 @@ class VAE(pl.LightningModule):
 
     
     def loss_function(self, pred, target, mu, log_var, batch_size, p):
-        nll = F.nll_loss(pred, target, ignore_index=0)
+        if self.autoreg:
+            nll = F.nll_loss(pred, target, ignore_index=0)
+        else:
+            nll = F.nll_loss(pred, target)
         kld = -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp()) / (batch_size * pred.shape[1])
         return nll + p * kld, nll, kld
     
