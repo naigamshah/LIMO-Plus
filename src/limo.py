@@ -18,7 +18,7 @@ class LIMO:
         self.model_type = model_type
         self.exp_name = exp_name
 
-        self.autodock_executable='../AutoDock-GPU/bin/autodock_gpu_64wi',
+        self.autodock_executable='../AutoDock-GPU/bin/autodock_gpu_64wi'
         self.protein_file='data/1err/1err.maps.fld'
         self.save_logs_suffix = f'{self.model_type}/{self.tokenizer}/{self.exp_name}'
         self.save_model_suffix = f'{self.model_type}_{self.tokenizer}_{self.exp_name}'
@@ -37,8 +37,16 @@ class LIMO:
             prop_dim = latent_dim
             wpad = True
         elif self.model_type == "cvae_t":
-            modelClass = cVAEFormer
+            modelClass = VAEFormer
             conditional = True
+            latent_dim=128
+            embedding_dim=128
+            batch_size = 256
+            prop_dim = latent_dim
+            wpad = True
+        elif self.model_type == "vae_t":
+            modelClass = VAEFormer
+            conditional = False
             latent_dim=128
             embedding_dim=128
             batch_size = 256
@@ -86,15 +94,16 @@ class LIMO:
             ])
         print('Training..')
         trainer.fit(model, dm)
-        print('Saving..')
         if not os.path.exists(f"{GEN_MODELS_SAVE}"):
             os.makedirs(f"{GEN_MODELS_SAVE}")
-        torch.save(model.state_dict(), f'{GEN_MODELS_SAVE}/{self.save_model_suffix}.pt')
+        if trainer.state.status == "finished":
+            print('Saving..')
+            torch.save(model.state_dict(), f'{GEN_MODELS_SAVE}/{self.save_model_suffix}.pt')
 
     def train_property_predictor(
         self,
         prop,
-        num_mols=10000,
+        num_mols=10000
     ):
         exp_suffix = self.tokenizer
         
@@ -131,7 +140,7 @@ class LIMO:
                 x = torch.cat(xs, dim=0)
                 print(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{exp_suffix}:{prop}: Decoding variance = {x.std()}", 
                       flush=True, 
-                      file=open(f"temp/log_file_{self.tokenizer}_{self.model_type}_{self.exp_name}", "a+"))
+                      file=open(f"temp/log_file_{self.tokenizer}_{self.model_type}_{self.exp_name}.txt", "a+"))
                 # pickle.dump(x, open(f"property_models/{args.prop}_{exp_suffix}_x", 'wb')) 
                 smx = [dm.dataset.one_hot_to_smiles(x[i]) for i in range(x.shape[0])]
                 y = torch.tensor(prop_func(smx), device=device).unsqueeze(1).float()
@@ -164,10 +173,12 @@ class LIMO:
 
         print(f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}:{exp_suffix}:{prop}: property predictor trained, correlation of r = {linregress(model(x[:1000].to(device)).detach().cpu().numpy().flatten(), y[:1000].detach().cpu().numpy().flatten()).rvalue}', 
               flush=True, 
-              file=open(f"temp/log_file_{self.tokenizer}_{self.model_type}_{self.exp_name}", "a+"))
+              file=open(f"temp/log_file_{self.tokenizer}_{self.model_type}_{self.exp_name}.txt", "a+"))
         if not os.path.exists(f'{PROP_MODELS_SAVE}'):
             os.makedirs(f'{PROP_MODELS_SAVE}')
-        torch.save(model.state_dict(), f'{PROP_MODELS_SAVE}/{prop}_{self.save_model_suffix}.pt')
+        if trainer.state.status == "finished":
+            print('Saving..')
+            torch.save(model.state_dict(), f'{PROP_MODELS_SAVE}/{prop}_{self.save_model_suffix}.pt')
 
     def generate_molecules(
         self,
@@ -176,7 +187,8 @@ class LIMO:
         top_k=3,
         sa_cutoff=5.5,
         qed_cutoff=0.4,
-        optim_steps=10
+        optim_steps=10,
+        use_pcgrad=False
     ):
         
         exp_suffix = self.tokenizer #"gs_zinc"
@@ -212,7 +224,10 @@ class LIMO:
             zs = []
             for i in range(num_chunks):
                 z = torch.randn((len(idx[i*MAX_MOLS_GRAD_CHUNK:(i+1)*MAX_MOLS_GRAD_CHUNK]), gen_model.latent_dim), device=device, requires_grad=True)
-                optimizer = PCGrad(optim.Adam([z], lr=0.1))
+                if use_pcgrad:
+                    optimizer = PCGrad(optim.Adam([z], lr=0.1))
+                else:
+                    optimizer = optim.Adam([z], lr=0.1)
                 losses = []
                 for epoch in tqdm.tqdm(range(num_steps), desc='generating molecules'):
                     loss = 0
@@ -236,8 +251,10 @@ class LIMO:
                     # grad_dirs = torch.bmm(grad_t, grad_t.permute(0,2,1))
                     # print("Gradient direction sim", grad_dirs.mean(0), grad_dirs.std(0))
                     optimizer.zero_grad()
-                    optimizer.pc_backward(objectives)
-                    #loss.backward()
+                    if use_pcgrad:
+                        optimizer.pc_backward(objectives)
+                    else:
+                        loss.backward()
                     optimizer.step()
                     losses.append(loss.item())
                 zs.append(z.detach())

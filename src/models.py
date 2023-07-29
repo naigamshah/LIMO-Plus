@@ -177,7 +177,7 @@ class cVAE(VAE):
         z, mu, log_var = self.encode(x, sa, qed)
         return self.decode(z, sa, qed), z, mu, log_var
 
-class cVAEFormer(cVAE):
+class VAEFormer(cVAE):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
@@ -241,18 +241,22 @@ class cVAEFormer(cVAE):
         self.register_buffer("decoder_mask", decoder_mask)
         self.dec_emb = nn.Parameter(0.02*torch.randn(1, self.max_len, self.embedding_dim))
 
-    def encode(self, x, sa, qed):
+    def encode(self, x, sa=None, qed=None):
         # src_key_mask = torch.stack([row != 0 for row in x], dim=0).bool()
-        src_key_mask = torch.cat([self.enc_prefix.expand(x.size(0), -1), x==0],dim=1)
+        src_key_mask = x==0
         x = self.inp_emb(x) + self.time_emb
-        enc_inp_emb = torch.cat([
-                self.z_emb.unsqueeze(0).expand(x.size(0),-1,-1),  
-                self.cond_emb.qed(qed).unsqueeze(1), 
-                self.cond_emb.sa(sa).unsqueeze(1),
-                x],
+        inp_emb_list = []
+        if sa is not None:
+            inp_emb_list.append(self.cond_emb.sa(sa).unsqueeze(1))
+        if qed is not None:
+            inp_emb_list.append(self.cond_emb.qed(qed).unsqueeze(1))
+        enc_inp_emb = torch.cat(
+            [self.z_emb.unsqueeze(0).expand(x.size(0),-1,-1)] + 
+             inp_emb_list + [x], 
             dim=1
         )
 
+        src_key_mask = torch.cat([self.enc_prefix[:, :1+len(inp_emb_list)].expand(x.size(0), -1), src_key_mask],dim=1)
         x = self.encoder(enc_inp_emb, src_key_padding_mask=src_key_mask)
         x = self.reparametrize(x[:, 0])
         mu, log_var = x[:, :self.embedding_dim], x[:, self.embedding_dim:]
@@ -261,29 +265,23 @@ class cVAEFormer(cVAE):
         return mu + eps * std, mu, log_var
     
     def decode(self, z, sa=None, qed=None, true_targets=None):
-        if sa is None:
-            sa = (torch.ones(z.shape[0], 1, device=z.device) * SA_TARGET -  SA_MEAN) / SA_STD 
-        if qed is None:
-            qed = (torch.ones(z.shape[0], 1, device=z.device) * QED_TARGET - QED_MEAN) / QED_STD
-        dec_inp_emb = torch.cat([
-                z.unsqueeze(1),
-                self.cond_emb.qed(qed).unsqueeze(1), 
-                self.cond_emb.sa(sa).unsqueeze(1)],
-            dim=1
-        )
+        dec_emb_list = []
+        if sa is not None:
+            dec_emb_list.append(self.cond_emb.sa(sa).unsqueeze(1))
+        if qed is not None:
+            dec_emb_list.append(self.cond_emb.qed(qed).unsqueeze(1))
+
         if true_targets is not None:
             # teacher forcing
             # src_key_mask = torch.cat([self.enc_prefix.expand(z.size(0), -1), x==0],dim=1)
-            enc_inp_emb = torch.cat([
-                    z.unsqueeze(1),  
-                    self.cond_emb.qed(qed).unsqueeze(1), 
-                    self.cond_emb.sa(sa).unsqueeze(1),
-                    self.dec_emb.expand(z.size(0), -1, -1)],
+            enc_inp_emb = torch.cat(
+                    [z.unsqueeze(1)] + dec_emb_list +
+                    [self.dec_emb.expand(z.size(0), -1, -1)],
                 dim=1
             )
 
             x = self.decoder(enc_inp_emb)
-            x = x[:, 3:]
+            x = x[:, 1+len(dec_emb_list):]
             x = self.lm_head(x)
             # tgt = self.inp_emb(true_targets[:, :-1]) + self.time_emb[:, :-1]
             # tgt = torch.cat([self.dec_start_token.expand(z.size(0), -1,-1), tgt], dim=1)
@@ -295,16 +293,14 @@ class cVAEFormer(cVAE):
             #x[:,:,0] = float('-inf')
         else:
             #src_key_mask = torch.cat([self.enc_prefix.expand(z.size(0), -1), x==0],dim=1)
-            enc_inp_emb = torch.cat([
-                    z.unsqueeze(1),  
-                    self.cond_emb.qed(qed).unsqueeze(1), 
-                    self.cond_emb.sa(sa).unsqueeze(1),
-                    self.dec_emb.expand(z.size(0), -1, -1)],
+            enc_inp_emb = torch.cat(
+                    [z.unsqueeze(1)] + dec_emb_list +
+                    [self.dec_emb.expand(z.size(0), -1, -1)],
                 dim=1
             )
 
             x = self.decoder(enc_inp_emb)
-            x = x[:, 3:]
+            x = x[:, 1+len(dec_emb_list):]
             x = self.lm_head(x)
             # with torch.no_grad():
             #     dec_tokens = [self.dec_start_token.expand(z.size(0), -1).unsqueeze(1)] 
@@ -323,7 +319,7 @@ class cVAEFormer(cVAE):
             # x = torch.stack(dec_outputs, dim=1)
         return F.log_softmax(x, dim=-1).view((-1, self.max_len * self.vocab_len))
     
-    def forward(self, x, sa, qed):
+    def forward(self, x, sa=None, qed=None):
         z, mu, log_var = self.encode(x, sa, qed)
         return self.decode(z, sa, qed, x), z, mu, log_var
     
