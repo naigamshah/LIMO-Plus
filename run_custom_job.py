@@ -7,7 +7,7 @@ parser.add_argument("-c", "--config", type=str)
 parser.add_argument("-m", "--model_type", type=str)
 parser.add_argument("-s", "--start_stage", type=int)
 parser.add_argument("-e", "--end_stage", type=int, default=10)
-parser.add_argument("-n", "--exp_name", type=str, default="")
+parser.add_argument("-n", "--exp_name", type=str, default="default")
 args = parser.parse_args()
 
 run_type = args.run_type
@@ -47,7 +47,7 @@ spec:
           - "sh"
           - "-c"
         args:
-          - "cd /home/AIMD && conda init && . /opt/conda/etc/profile.d/conda.sh && conda activate pytorch && python limo.py --config {config} --start_stage {start_stage} --end_stage {end_stage} --model_type {model_type} --exp_name {exp_name}"
+          - "cd /home/AIMD && conda init && . /opt/conda/etc/profile.d/conda.sh && conda activate pytorch && python run_limo.py --config {config} --start_stage {start_stage} --end_stage {end_stage} --model_type {model_type} --exp_name {exp_name}"
         resources:
           requests:
             cpu: "12"

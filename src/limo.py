@@ -8,8 +8,8 @@ from src.models import *
 from src.dataloaders import MolDataModule, PropDataModule
 from src.constants import *
 from src.tokenizers import *
-from src.train_utils import *
 import datetime
+from src.pcgrad import PCGrad
 
 class LIMO:
     def __init__(self, token_file, tokenizer, model_type="vae", exp_name="default") -> None:
@@ -23,11 +23,49 @@ class LIMO:
         self.save_logs_suffix = f'{self.model_type}/{self.tokenizer}/{self.exp_name}'
         self.save_model_suffix = f'{self.model_type}_{self.tokenizer}_{self.exp_name}'
 
+    def get_dm_model(self, load_from_ckpt=False):
+        exp_suffix = self.tokenizer
+        tokenizer_model = choose_tokenizer(self.tokenizer)
+        token_loc = self.token_file
+
+        if self.model_type == "cvae":
+            modelClass = cVAE
+            conditional = True
+            latent_dim=1024
+            embedding_dim=64
+            batch_size = 1024
+            prop_dim = latent_dim
+            wpad = True
+        elif self.model_type == "cvae_t":
+            modelClass = cVAEFormer
+            conditional = True
+            latent_dim=128
+            embedding_dim=128
+            batch_size = 256
+            prop_dim = latent_dim
+            wpad = True
+        else: 
+            modelClass = VAE
+            conditional = False
+            latent_dim=1024
+            embedding_dim=64
+            batch_size = 1024
+            prop_dim = latent_dim
+            wpad = False
+
+        dm = MolDataModule(batch_size, token_loc, tokenizer_model, conditional=conditional, wpad=wpad)
+        model = modelClass(max_len=dm.dataset.max_len, vocab_len=len(dm.dataset.symbol_to_idx), 
+            latent_dim=latent_dim, embedding_dim=embedding_dim)
+        
+        if load_from_ckpt:
+            model.load_state_dict(torch.load(f'{GEN_MODELS_SAVE}/{self.save_model_suffix}.pt'))
+        return dm, model
+
     def train_vae(self):
         exp_suffix =  self.tokenizer
         print(f"Train {self.model_type} using {exp_suffix}")
         
-        dm, model = get_dm_model(tokenizer=self.tokenizer, token_file=self.token_file, model_type=self.model_type)
+        dm, model = self.get_dm_model()
 
         trainer = pl.Trainer(
             accelerator="gpu", 
@@ -72,7 +110,7 @@ class LIMO:
             num_devices = 1
 
         
-        dm, model = get_dm_model(tokenizer=self.tokenizer, token_file=self.token_file, model_type=self.model_type, load_from_ckpt=True)
+        dm, model = self.get_dm_model(load_from_ckpt=True)
         model.to(device)
         model.eval()
 
@@ -82,12 +120,12 @@ class LIMO:
             #     return pickle.load(open(f"property_models/{args.prop}_{exp_suffix}_x","rb")), pickle.load(open(f"property_models/{args.prop}_{exp_suffix}_y", "rb"))
             with torch.no_grad():
                 xs = []
-                num_chunks = num_mols // MAX_MOLS_CHUNK 
-                if num_mols % MAX_MOLS_CHUNK != 0:
+                num_chunks = num_mols // MAX_MOLS_NOGRAD_CHUNK 
+                if num_mols % MAX_MOLS_NOGRAD_CHUNK != 0:
                     num_chunks += 1
                 idx = range(0, num_mols)
                 for i in range(num_chunks):
-                    z = torch.randn((len(idx[i*MAX_MOLS_CHUNK:(i+1)*MAX_MOLS_CHUNK]), model.latent_dim), device=device)
+                    z = torch.randn((len(idx[i*MAX_MOLS_NOGRAD_CHUNK:(i+1)*MAX_MOLS_NOGRAD_CHUNK]), model.latent_dim), device=device)
                     xs.append(torch.exp(model.decode(z)))
 
                 x = torch.cat(xs, dim=0)
@@ -151,35 +189,51 @@ class LIMO:
             device = torch.device("cpu")
             num_devices = 1
 
-        
-        dm, gen_model = get_dm_model(tokenizer=self.tokenizer, token_file=self.token_file, model_type=self.model_type, load_from_ckpt=True)
+        dm, gen_model = self.get_dm_model(load_from_ckpt=True)
         gen_model.to(device)
         gen_model.eval()
 
         def get_optimized_z(weights, num_mols, num_steps=10):
             models = []
-            for prop_name in weights:
+            for idx,prop_name in enumerate(weights):
+                #print(idx, prop_name)
                 models.append(PropertyPredictor(dm.dataset.max_len * len(dm.dataset.symbol_to_idx)))
-                models[-1].load_state_dict(torch.load(f'{PROP_MODELS_SAVE}/{self.save_path_suffix}/{prop_name}_{self.exp_name}.pt', map_location="cpu"))
+                models[-1].load_state_dict(torch.load(f'{PROP_MODELS_SAVE}/{prop_name}_{self.save_model_suffix}.pt', map_location="cpu"))
                 models[-1] = models[-1].to(device)
             
-            num_chunks = num_mols // MAX_MOLS_CHUNK 
-            if num_mols % MAX_MOLS_CHUNK != 0:
+            num_chunks = num_mols // MAX_MOLS_GRAD_CHUNK 
+            if num_mols % MAX_MOLS_GRAD_CHUNK != 0:
                 num_chunks += 1
             idx = range(0, num_mols)
             zs = []
             for i in range(num_chunks):
-                z = torch.randn((len(idx[i*MAX_MOLS_CHUNK:(i+1)*MAX_MOLS_CHUNK]), gen_model.latent_dim), device=device, requires_grad=True)
-                optimizer = optim.Adam([z], lr=0.1)
+                z = torch.randn((len(idx[i*MAX_MOLS_GRAD_CHUNK:(i+1)*MAX_MOLS_GRAD_CHUNK]), gen_model.latent_dim), device=device, requires_grad=True)
+                optimizer = PCGrad(optim.Adam([z], lr=0.1))
                 losses = []
-                for epoch in tqdm(range(num_steps), desc='generating molecules'):
-                    optimizer.zero_grad()
+                for epoch in tqdm.tqdm(range(num_steps), desc='generating molecules'):
                     loss = 0
+                    objectives = []
                     probs = torch.exp(gen_model.decode(z))
-                    for i, model in enumerate(models):
+                    #gradients = []
+                    for modeli, model in enumerate(models):
                         out = model(probs)
+                        
+                        # optimizer.zero_grad()
+                        # torch.sum(out).backward(retain_graph=True)
+                        # gradients.append(z.grad.clone())
+                        objectives.append(torch.sum(out))
                         loss += torch.sum(out) * list(weights.values())[i]
-                    loss.backward()
+                    
+                    # grads = [torch.norm(g, dim=1) for g in gradients]
+                    # for gidx,g in enumerate(grads):
+                    #     print(f"{gidx} Gradient magnitudes ", g.mean(), g.std())
+                    # grad_t = torch.stack([g/torch.norm(g, dim=1, keepdim=True) for g in gradients], dim=1)
+                    # print(grad_t.shape)
+                    # grad_dirs = torch.bmm(grad_t, grad_t.permute(0,2,1))
+                    # print("Gradient direction sim", grad_dirs.mean(0), grad_dirs.std(0))
+                    optimizer.zero_grad()
+                    optimizer.pc_backward(objectives)
+                    #loss.backward()
                     optimizer.step()
                     losses.append(loss.item())
                 zs.append(z.detach())
@@ -262,7 +316,7 @@ class LIMO:
             num_devices = 1
 
         
-        dm, model = get_dm_model(tokenizer=self.tokenizer, token_file=self.token_file, model_type=self.model_type, load_from_ckpt=True)
+        dm, model = self.get_dm_model(load_from_ckpt=True)
         model.to(device)
         model.eval()
 

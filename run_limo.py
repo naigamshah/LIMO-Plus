@@ -12,7 +12,7 @@ def main():
     parser.add_argument('--model_type', type=str, default='vae')
     parser.add_argument('--start_stage', type=int, default=0)
     parser.add_argument('--end_stage', type=int, default=10)
-    parser.add_argument("-n", "--exp_name", type=str, default="")
+    parser.add_argument("-n", "--exp_name", type=str, default="default")
     args = parser.parse_args()
 
     start_stage = args.start_stage
