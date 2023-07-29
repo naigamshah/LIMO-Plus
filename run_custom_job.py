@@ -7,6 +7,7 @@ parser.add_argument("-c", "--config", type=str)
 parser.add_argument("-m", "--model_type", type=str)
 parser.add_argument("-s", "--start_stage", type=int)
 parser.add_argument("-e", "--end_stage", type=int, default=10)
+parser.add_argument("-n", "--exp_name", type=str, default="")
 args = parser.parse_args()
 
 run_type = args.run_type
@@ -14,13 +15,14 @@ config:str = args.config
 start_stage:int = args.start_stage
 end_stage:int = args.end_stage
 model_type:str = args.model_type
+exp_name:str = args.exp_name
 
 yaml_config = \
 f'''
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: vthumuluri-job-{config.replace("_","-")}-{model_type.replace("_","-")}
+  name: vthumuluri-job-{config.replace("_","-")}-{model_type.replace("_","-")}-{exp_name}
   namespace: ai-md
   labels:
     user: vthumuluri
@@ -45,7 +47,7 @@ spec:
           - "sh"
           - "-c"
         args:
-          - "cd /home/AIMD && conda init && . /opt/conda/etc/profile.d/conda.sh && conda activate pytorch && python limo.py --config {config} --start_stage {start_stage} --end_stage {end_stage} --model_type {model_type}"
+          - "cd /home/AIMD && conda init && . /opt/conda/etc/profile.d/conda.sh && conda activate pytorch && python limo.py --config {config} --start_stage {start_stage} --end_stage {end_stage} --model_type {model_type} --exp_name {exp_name}"
         resources:
           requests:
             cpu: "12"

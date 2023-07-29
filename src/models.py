@@ -208,8 +208,12 @@ class cVAEFormer(cVAE):
                 norm_first=True), 
             num_layers=4
         )
-        self.decoder = nn.TransformerDecoder(
-            decoder_layer=nn.TransformerDecoderLayer(
+
+        enc_prefix = torch.zeros(1, 3, dtype=bool)
+        self.register_buffer("enc_prefix", enc_prefix)
+
+        self.decoder = nn.TransformerEncoder(
+            encoder_layer=nn.TransformerEncoderLayer(
                 d_model=self.embedding_dim,
                 nhead=8,
                 dim_feedforward=self.embedding_dim*4,
@@ -218,6 +222,16 @@ class cVAEFormer(cVAE):
                 norm_first=True),# important for stability
             num_layers=4
         )
+        # self.decoder = nn.TransformerDecoder(
+        #     decoder_layer=nn.TransformerDecoderLayer(
+        #         d_model=self.embedding_dim,
+        #         nhead=8,
+        #         dim_feedforward=self.embedding_dim*4,
+        #         activation='gelu',
+        #         batch_first=True,
+        #         norm_first=True),# important for stability
+        #     num_layers=4
+        # )
 
         sz = self.max_len + 1 # start token
         self.dec_start_token = nn.Parameter(0.02*torch.randn(1, self.embedding_dim))
@@ -225,8 +239,7 @@ class cVAEFormer(cVAE):
         decoder_mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
         decoder_mask = ~decoder_mask.bool() #decoder_mask.float().masked_fill(decoder_mask == 0, float('-inf')).masked_fill(decoder_mask == 1, float(0.0))
         self.register_buffer("decoder_mask", decoder_mask)
-        enc_prefix = torch.zeros(1, 3, dtype=bool)
-        self.register_buffer("enc_prefix", enc_prefix)
+        self.dec_emb = nn.Parameter(0.02*torch.randn(1, self.max_len, self.embedding_dim))
 
     def encode(self, x, sa, qed):
         # src_key_mask = torch.stack([row != 0 for row in x], dim=0).bool()
@@ -260,29 +273,54 @@ class cVAEFormer(cVAE):
         )
         if true_targets is not None:
             # teacher forcing
-            tgt = self.inp_emb(true_targets[:, :-1]) + self.time_emb[:, :-1]
-            tgt = torch.cat([self.dec_start_token.expand(z.size(0), -1,-1), tgt], dim=1)
-            x = self.decoder(
-                tgt=tgt, 
-                memory=dec_inp_emb, 
-                tgt_mask=self.decoder_mask[:-1,:-1])
+            # src_key_mask = torch.cat([self.enc_prefix.expand(z.size(0), -1), x==0],dim=1)
+            enc_inp_emb = torch.cat([
+                    z.unsqueeze(1),  
+                    self.cond_emb.qed(qed).unsqueeze(1), 
+                    self.cond_emb.sa(sa).unsqueeze(1),
+                    self.dec_emb.expand(z.size(0), -1, -1)],
+                dim=1
+            )
+
+            x = self.decoder(enc_inp_emb)
+            x = x[:, 3:]
             x = self.lm_head(x)
+            # tgt = self.inp_emb(true_targets[:, :-1]) + self.time_emb[:, :-1]
+            # tgt = torch.cat([self.dec_start_token.expand(z.size(0), -1,-1), tgt], dim=1)
+            # x = self.decoder(
+            #     tgt=tgt, 
+            #     memory=dec_inp_emb, 
+            #     tgt_mask=self.decoder_mask[:-1,:-1])
+            # x = self.lm_head(x)
             #x[:,:,0] = float('-inf')
         else:
-            dec_tokens = [self.dec_start_token.expand(z.size(0), -1).unsqueeze(1)] 
-            dec_outputs = []
-            assert len(self.decoder_mask.shape) == 2
-            for i in range(self.max_len):
-                x = self.decoder(
-                    tgt=torch.cat(dec_tokens, dim=1), 
-                    memory=dec_inp_emb, 
-                    tgt_mask=self.decoder_mask[:i+1, :i+1])
-                dec_logits = self.lm_head(x[:,-1,:])
-                dec_logits[:,0] = float('-inf')
-                dec_outputs.append(dec_logits)
-                next_token = self.inp_emb(torch.argmax(dec_logits, dim=1)).unsqueeze(1) + self.time_emb[:, i, :]
-                dec_tokens.append(next_token)
-            x = torch.stack(dec_outputs, dim=1)
+            #src_key_mask = torch.cat([self.enc_prefix.expand(z.size(0), -1), x==0],dim=1)
+            enc_inp_emb = torch.cat([
+                    z.unsqueeze(1),  
+                    self.cond_emb.qed(qed).unsqueeze(1), 
+                    self.cond_emb.sa(sa).unsqueeze(1),
+                    self.dec_emb.expand(z.size(0), -1, -1)],
+                dim=1
+            )
+
+            x = self.decoder(enc_inp_emb)
+            x = x[:, 3:]
+            x = self.lm_head(x)
+            # with torch.no_grad():
+            #     dec_tokens = [self.dec_start_token.expand(z.size(0), -1).unsqueeze(1)] 
+            #     dec_outputs = []
+            #     assert len(self.decoder_mask.shape) == 2
+            #     for i in range(self.max_len):
+            #         x = self.decoder(
+            #             tgt=torch.cat(dec_tokens, dim=1), 
+            #             memory=dec_inp_emb, 
+            #             tgt_mask=self.decoder_mask[:i+1, :i+1])
+            #         dec_logits = self.lm_head(x[:,-1,:])
+            #         dec_logits[:,0] = float('-inf')
+            #         dec_outputs.append(dec_logits)
+            #         next_token = self.inp_emb(torch.argmax(dec_logits, dim=1)).unsqueeze(1) + self.time_emb[:, i, :]
+            #         dec_tokens.append(next_token)
+            # x = torch.stack(dec_outputs, dim=1)
         return F.log_softmax(x, dim=-1).view((-1, self.max_len * self.vocab_len))
     
     def forward(self, x, sa, qed):
