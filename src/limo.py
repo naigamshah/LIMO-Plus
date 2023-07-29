@@ -222,7 +222,7 @@ class LIMO:
                         # torch.sum(out).backward(retain_graph=True)
                         # gradients.append(z.grad.clone())
                         objectives.append(torch.sum(out))
-                        loss += torch.sum(out) * list(weights.values())[i]
+                        loss += torch.sum(out) * list(weights.values())[modeli]
                     
                     # grads = [torch.norm(g, dim=1) for g in gradients]
                     # for gidx,g in enumerate(grads):
