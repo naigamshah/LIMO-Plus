@@ -129,7 +129,9 @@ class LIMO:
                     xs.append(torch.exp(model.decode(z)))
 
                 x = torch.cat(xs, dim=0)
-                print(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{exp_suffix}:{prop}: Decoding variance = {x.std()}", flush=True, file=open(f"temp/log_file_{exp_suffix}.txt", "a+"))
+                print(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{exp_suffix}:{prop}: Decoding variance = {x.std()}", 
+                      flush=True, 
+                      file=open(f"temp/log_file_{self.tokenizer}_{self.model_type}_{self.exp_name}", "a+"))
                 # pickle.dump(x, open(f"property_models/{args.prop}_{exp_suffix}_x", 'wb')) 
                 smx = [dm.dataset.one_hot_to_smiles(x[i]) for i in range(x.shape[0])]
                 y = torch.tensor(prop_func(smx), device=device).unsqueeze(1).float()
@@ -160,7 +162,9 @@ class LIMO:
         model.eval()
         model = model.to(device)
 
-        print(f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}:{exp_suffix}:{prop}: property predictor trained, correlation of r = {linregress(model(x[:1000].to(device)).detach().cpu().numpy().flatten(), y[:1000].detach().cpu().numpy().flatten()).rvalue}', flush=True, file=open(f"temp/log_file_{exp_suffix}.txt", "a+"))
+        print(f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}:{exp_suffix}:{prop}: property predictor trained, correlation of r = {linregress(model(x[:1000].to(device)).detach().cpu().numpy().flatten(), y[:1000].detach().cpu().numpy().flatten()).rvalue}', 
+              flush=True, 
+              file=open(f"temp/log_file_{self.tokenizer}_{self.model_type}_{self.exp_name}", "a+"))
         if not os.path.exists(f'{PROP_MODELS_SAVE}'):
             os.makedirs(f'{PROP_MODELS_SAVE}')
         torch.save(model.state_dict(), f'{PROP_MODELS_SAVE}/{prop}_{self.save_model_suffix}.pt')

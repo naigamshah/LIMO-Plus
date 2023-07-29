@@ -26,7 +26,7 @@ def main():
     tokenizer = args.config
     token_file = TOKENIZER_CONFIGS[args.config]["token_file"]
     log_file = f"temp/log_file_{exp_suffix}_{model_type}_{exp_name}.txt"
-    open(log_file, "w")
+    #open(log_file, "w")
 
     limo = LIMO(token_file=token_file, tokenizer=tokenizer, model_type=model_type, exp_name=exp_name)
     
