@@ -62,8 +62,8 @@ class LIMO:
             autoreg = False
 
         dm = MolDataModule(batch_size, token_loc, tokenizer_model, conditional=conditional, wpad=autoreg)
-        model = modelClass(max_len=dm.dataset.max_len, vocab_len=len(dm.dataset.symbol_to_idx, autoreg=autoreg), 
-            latent_dim=latent_dim, embedding_dim=embedding_dim)
+        model = modelClass(max_len=dm.dataset.max_len, vocab_len=len(dm.dataset.symbol_to_idx), 
+            latent_dim=latent_dim, embedding_dim=embedding_dim, autoreg=autoreg)
         
         if load_from_ckpt:
             model.load_state_dict(torch.load(f'{GEN_MODELS_SAVE}/{self.save_model_suffix}.pt'))
