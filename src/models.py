@@ -116,8 +116,8 @@ class VAE(pl.LightningModule):
         return loss
 
 class cVAE(VAE):
-    def __init__(self, max_len, vocab_len, latent_dim, embedding_dim):
-        super().__init__(max_len, vocab_len, latent_dim, embedding_dim)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
     
     def init_modules(self):
         self.embedding = nn.Embedding(self.vocab_len, self.embedding_dim, padding_idx=0)
