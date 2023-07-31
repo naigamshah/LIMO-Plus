@@ -51,7 +51,7 @@ class LIMO:
             embedding_dim=128
             batch_size = 256
             prop_dim = latent_dim
-            autoreg = False
+            autoreg = True
         else: 
             modelClass = VAE
             conditional = False
