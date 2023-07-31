@@ -62,7 +62,7 @@ class LIMO:
             autoreg = False
 
         dm = MolDataModule(batch_size, token_loc, tokenizer_model, conditional=conditional, wpad=autoreg)
-        model = modelClass(max_len=dm.dataset.max_len, vocab_len=len(dm.dataset.symbol_to_idx), 
+        model = modelClass(max_len=dm.dataset.max_len, vocab_len=len(dm.dataset.symbol_to_idx, autoreg=autoreg), 
             latent_dim=latent_dim, embedding_dim=embedding_dim)
         
         if load_from_ckpt:
