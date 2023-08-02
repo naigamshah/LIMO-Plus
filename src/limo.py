@@ -305,7 +305,11 @@ class LIMO:
         if opt_prop in ('sa', 'ba', 'moba'):
             if not os.path.exists(f"gen_mols"):
                 os.makedirs(f"gen_mols")
-            pickle.dump([(prop[i], smiles[i]) for i in range(len(smiles))], 
+            if use_pcgrad:
+                pickle.dump([(prop[i], smiles[i]) for i in range(len(smiles))], 
+                    open(f"gen_mols/{opt_prop}_pcgrad_{self.save_model_suffix}.pkl", "wb"))
+            else:
+                pickle.dump([(prop[i], smiles[i]) for i in range(len(smiles))], 
                     open(f"gen_mols/{opt_prop}_{self.save_model_suffix}.pkl", "wb"))
             for i in np.argpartition(prop, top_k)[:top_k]:
                 if opt_prop == 'ba':

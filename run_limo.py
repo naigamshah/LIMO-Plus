@@ -53,7 +53,7 @@ def main():
     # generate molecules
     if start_stage <= 2 and end_stage > 2:
         print(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{exp_suffix}:{model_type} Generating molecules", flush=True, file=open(log_file, "a+"))
-        if model_type == "vae":
+        if (model_type == "vae") or (model_type == "vae_t"):
             opt_prop = "moba"
             sa_cut_off = 5.5
             qed_cut_off = 0.4

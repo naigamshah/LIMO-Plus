@@ -8,6 +8,7 @@ parser.add_argument("-m", "--model_type", type=str)
 parser.add_argument("-s", "--start_stage", type=int)
 parser.add_argument("-e", "--end_stage", type=int, default=10)
 parser.add_argument("-n", "--exp_name", type=str, default="default")
+parser.add_argument("-p", "--use_pcgrad", type=bool, default=False)
 args = parser.parse_args()
 
 run_type = args.run_type
@@ -16,6 +17,7 @@ start_stage:int = args.start_stage
 end_stage:int = args.end_stage
 model_type:str = args.model_type
 exp_name:str = args.exp_name
+use_pcgrad = args.use_pcgrad
 
 yaml_config = \
 f'''
