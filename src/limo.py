@@ -10,6 +10,7 @@ from src.constants import *
 from src.tokenizers import *
 import datetime
 from src.pcgrad import PCGrad
+from src.optimizers.opt_methods import *
 
 class LIMO:
     def __init__(self, token_file, tokenizer, model_type="vae", exp_name="default") -> None:
@@ -188,7 +189,7 @@ class LIMO:
         sa_cutoff=5.5,
         qed_cutoff=0.4,
         optim_steps=10,
-        use_pcgrad=False
+        opt_method="default"
     ):
         
         exp_suffix = self.tokenizer #"gs_zinc"
@@ -217,6 +218,9 @@ class LIMO:
                 models[-1].load_state_dict(torch.load(f'{PROP_MODELS_SAVE}/{prop_name}_{self.save_model_suffix}.pt', map_location="cpu"))
                 models[-1] = models[-1].to(device)
             
+            task_specific_params = []
+            for m in models:
+                task_specific_params += m.parameters()
             num_chunks = num_mols // MAX_MOLS_GRAD_CHUNK 
             if num_mols % MAX_MOLS_GRAD_CHUNK != 0:
                 num_chunks += 1
@@ -224,8 +228,17 @@ class LIMO:
             zs = []
             for i in range(num_chunks):
                 z = torch.randn((len(idx[i*MAX_MOLS_GRAD_CHUNK:(i+1)*MAX_MOLS_GRAD_CHUNK]), gen_model.latent_dim), device=device, requires_grad=True)
-                if use_pcgrad:
-                    optimizer = PCGrad(optim.Adam([z], lr=0.1))
+                if opt_method != "default":
+                    weight_method = WeightMethods(
+                        opt_method, n_tasks=3, device=device
+                    )
+                    optimizer = torch.optim.Adam(
+                        [
+                            dict(params=[z], lr=0.1),
+                            dict(params=weight_method.parameters(), lr=0.1),
+                        ],
+                    )
+                    # optimizer = PCGrad(optim.Adam([z], lr=0.1))
                 else:
                     optimizer = optim.Adam([z], lr=0.1)
                 losses = []
@@ -240,7 +253,9 @@ class LIMO:
                         # optimizer.zero_grad()
                         # torch.sum(out).backward(retain_graph=True)
                         # gradients.append(z.grad.clone())
+
                         objectives.append(torch.sum(out))
+                        
                         loss += torch.sum(out) * list(weights.values())[modeli]
                     
                     # grads = [torch.norm(g, dim=1) for g in gradients]
@@ -251,10 +266,19 @@ class LIMO:
                     # grad_dirs = torch.bmm(grad_t, grad_t.permute(0,2,1))
                     # print("Gradient direction sim", grad_dirs.mean(0), grad_dirs.std(0))
                     optimizer.zero_grad()
-                    if use_pcgrad:
-                        optimizer.pc_backward(objectives)
+                    if opt_method != "default":
+                        stacked_objectives = torch.stack(
+                            objectives
+                        )
+                        loss, extra_outputs = weight_method.backward(
+                            losses=stacked_objectives,
+                            shared_parameters=list(gen_model.decoder.parameters()),
+                            task_specific_parameters=list(task_specific_params),
+                        )
+                        #optimizer.pc_backward(objectives)
                     else:
                         loss.backward()
+                    
                     optimizer.step()
                     losses.append(loss.item())
                 zs.append(z.detach())
@@ -305,9 +329,9 @@ class LIMO:
         if opt_prop in ('sa', 'ba', 'moba'):
             if not os.path.exists(f"gen_mols"):
                 os.makedirs(f"gen_mols")
-            if use_pcgrad:
+            if opt_method != "default":
                 pickle.dump([(prop[i], smiles[i]) for i in range(len(smiles))], 
-                    open(f"gen_mols/{opt_prop}_pcgrad_{self.save_model_suffix}.pkl", "wb"))
+                    open(f"gen_mols/{opt_prop}_{opt_method}_{self.save_model_suffix}.pkl", "wb"))
             else:
                 pickle.dump([(prop[i], smiles[i]) for i in range(len(smiles))], 
                     open(f"gen_mols/{opt_prop}_{self.save_model_suffix}.pkl", "wb"))

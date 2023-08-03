@@ -13,7 +13,7 @@ def main():
     parser.add_argument('--start_stage', type=int, default=0)
     parser.add_argument('--end_stage', type=int, default=10)
     parser.add_argument("-n", "--exp_name", type=str, default="default")
-    parser.add_argument("-p", "--use_pcgrad", type=bool, default=False)
+    parser.add_argument("-p", "--opt_method", type=str, default="default")
     args = parser.parse_args()
 
     start_stage = args.start_stage
@@ -21,7 +21,7 @@ def main():
     model_type = args.model_type
     exp_suffix = args.config 
     exp_name:str = args.exp_name
-    use_pcgrad = args.use_pcgrad
+    opt_method = args.opt_method
 
     print(f"Running limo using {exp_suffix} model {model_type}, starting from stage {start_stage}")
     
@@ -44,7 +44,7 @@ def main():
             limo.train_property_predictor(
                 prop=prop_vals[0], 
                 num_mols=prop_vals[1])
-        if model_type == "vae":
+        if (model_type == "vae") or (model_type == "vae_t"):
             for prop_vals in [("sa", 50000), ("qed", 50000)]:
                 limo.train_property_predictor(
                     prop=prop_vals[0], 
@@ -52,7 +52,7 @@ def main():
         
     # generate molecules
     if start_stage <= 2 and end_stage > 2:
-        print(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{exp_suffix}:{model_type} Generating molecules", flush=True, file=open(log_file, "a+"))
+        print(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{exp_suffix}:{model_type} Generating molecules with opt method {opt_method}", flush=True, file=open(log_file, "a+"))
         if (model_type == "vae") or (model_type == "vae_t"):
             opt_prop = "moba"
             sa_cut_off = 5.5
@@ -61,7 +61,7 @@ def main():
             opt_prop = "ba"
             sa_cut_off = 11
             qed_cut_off = -1
-        limo.generate_molecules(opt_prop=opt_prop, sa_cutoff=sa_cut_off, qed_cutoff=qed_cut_off, use_pcgrad=use_pcgrad)
+        limo.generate_molecules(opt_prop=opt_prop, sa_cutoff=sa_cut_off, qed_cutoff=qed_cut_off, opt_method=opt_method)
 
 
     if start_stage <= 3 and end_stage > 3:

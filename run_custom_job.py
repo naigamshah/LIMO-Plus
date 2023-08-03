@@ -8,7 +8,7 @@ parser.add_argument("-m", "--model_type", type=str)
 parser.add_argument("-s", "--start_stage", type=int)
 parser.add_argument("-e", "--end_stage", type=int, default=10)
 parser.add_argument("-n", "--exp_name", type=str, default="default")
-parser.add_argument("-p", "--use_pcgrad", type=bool, default=False)
+parser.add_argument("-o", "--opt_method", type=str, default="default")
 args = parser.parse_args()
 
 run_type = args.run_type
@@ -17,7 +17,7 @@ start_stage:int = args.start_stage
 end_stage:int = args.end_stage
 model_type:str = args.model_type
 exp_name:str = args.exp_name
-use_pcgrad = args.use_pcgrad
+opt_method = args.opt_method
 
 yaml_config = \
 f'''
@@ -49,7 +49,7 @@ spec:
           - "sh"
           - "-c"
         args:
-          - "cd /home/AIMD && conda init && . /opt/conda/etc/profile.d/conda.sh && conda activate pytorch && python run_limo.py --config {config} --start_stage {start_stage} --end_stage {end_stage} --model_type {model_type} --exp_name {exp_name}"
+          - "cd /home/AIMD && conda init && . /opt/conda/etc/profile.d/conda.sh && conda activate pytorch && pip install cmake cvxpy && python run_limo.py --config {config} --start_stage {start_stage} --end_stage {end_stage} --model_type {model_type} --exp_name {exp_name} --opt_method {opt_method}"
         resources:
           requests:
             cpu: "12"
