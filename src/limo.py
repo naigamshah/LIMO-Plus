@@ -246,15 +246,15 @@ class LIMO:
                     loss = 0
                     objectives = []
                     probs = torch.exp(gen_model.decode(z))
-                    #gradients = []
+                    gradients = []
                     for modeli, model in enumerate(models):
                         out = model(probs)
                         
                         # optimizer.zero_grad()
-                        # torch.sum(out).backward(retain_graph=True)
+                        # (torch.sum(out)* list(weights.values())[modeli]).backward(retain_graph=True)
                         # gradients.append(z.grad.clone())
 
-                        objectives.append(torch.sum(out))
+                        objectives.append(torch.sum(out) * list(weights.values())[modeli])
                         
                         loss += torch.sum(out) * list(weights.values())[modeli]
                     

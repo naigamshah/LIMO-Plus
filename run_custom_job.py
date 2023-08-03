@@ -24,7 +24,7 @@ f'''
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: vthumuluri-job-{config.replace("_","-")}-{model_type.replace("_","-")}-{exp_name}
+  name: vthumuluri-job-{config.replace("_","-")}-{model_type.replace("_","-")}-{exp_name}-{opt_method}
   namespace: ai-md
   labels:
     user: vthumuluri
