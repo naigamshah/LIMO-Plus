@@ -272,7 +272,7 @@ class LIMO:
                         )
                         loss, extra_outputs = weight_method.backward(
                             losses=stacked_objectives,
-                            shared_parameters=list(gen_model.decoder.parameters()),
+                            shared_parameters=list(gen_model.decoder.parameters())+[z],
                             task_specific_parameters=list(task_specific_params),
                         )
                         #optimizer.pc_backward(objectives)
