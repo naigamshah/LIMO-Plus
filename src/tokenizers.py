@@ -94,8 +94,20 @@ def sf_tokenize_zinc():
         for selfie in selfies:
             f.write(f"{selfie}\n") 
 
+def sf_tokenize_moses():
+    tokenizer = SelfiesTokenizer()
+    smiles = [line.strip().split(",")[0] for line in open("data/dataset_v1.txt", 'r').readlines()[1:]]
+    # pool = multiprocessing.Pool(processes=8)
+    # parallelized = pool.map(tokenizer.encoder, smiles)
+    # selfies = [x for x in tqdm(parallelized) if x]
+    selfies = [tokenizer.encoder(smile) for smile in tqdm.tqdm(smiles)]
+    with open("tokens/moses_sf_selfies.txt", "w") as f:
+        for selfie in selfies:
+            f.write(f"{selfie}\n") 
+
+
 def choose_tokenizer(tokenizer_type: str) -> BaseTokenizer:
-    if tokenizer_type == "selfies":
+    if "selfies" in tokenizer_type:
         from src.tokenizers import SelfiesTokenizer
         return SelfiesTokenizer()
     elif "gs" in tokenizer_type:
@@ -120,4 +132,5 @@ if __name__ == "__main__":
     #gs_tokenize_zinc()
     #sf_tokenize_zinc()
     #um_gs_tokenize_zinc()
-    use_gs_tokenize_zinc()
+    #use_gs_tokenize_zinc()
+    sf_tokenize_moses()

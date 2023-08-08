@@ -80,7 +80,7 @@ class LIMO:
             accelerator="gpu", 
             num_nodes=1,
             #max_epochs=18, 
-            max_steps=25000,
+            max_steps=100000,
             enable_checkpointing=False,
             logger=pl.loggers.CSVLogger(f'temp/logs/{self.save_logs_suffix}'),
             callbacks=[

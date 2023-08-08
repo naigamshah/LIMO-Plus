@@ -20,6 +20,9 @@ TOKENIZER_CONFIGS={
     },
     "gs_use":{
         "token_file": f"{TOKENS_PATH}/zinc_usegs_selfies.txt"
+    },
+    "selfies_moses":{
+        "token_file": f"{TOKENS_PATH}/moses_sf_selfies.txt"
     }
 }
 

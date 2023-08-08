@@ -1,9 +1,11 @@
 temp*/*
 saved_models/*
 gen_mols/*
+tokens/*
 
 data/USPTO_FULL.csv
 data/USPTO_MIT.csv
+data/dataset_v1.txt
 
 *.pyc
 .DS_Store
