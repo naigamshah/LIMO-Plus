@@ -26,11 +26,11 @@ from src.constants import *
 
 NUM_WORKERS = 4
 class MolDataModule(pl.LightningDataModule):
-    def __init__(self, batch_size, file, tokenizer, conditional=False, wpad=True):
+    def __init__(self, batch_size, file, tokenizer, load_prop_list=None, wpad=True):
         super(MolDataModule, self).__init__()
         self.batch_size = batch_size
         dataset_class = TokenizedWPadDataset if wpad else TokenizedDataset
-        self.dataset = dataset_class(file, tokenizer, conditional)
+        self.dataset = dataset_class(file, tokenizer, load_prop_list)
         self.train_data, self.test_data = random_split(self.dataset, [int(round(len(self.dataset) * 0.8)), int(round(len(self.dataset) * 0.2))])
         print(f"DM len {len(self.dataset)}, Train size: {len(self.train_data)}, val size: {len(self.test_data)}")
     def train_dataloader(self):
@@ -55,7 +55,7 @@ class PropDataModule(pl.LightningDataModule):
         
 
 class TokenizedWPadDataset(Dataset):
-    def __init__(self, file, tokenizer: BaseTokenizer, conditional=False):
+    def __init__(self, file, tokenizer: BaseTokenizer, load_prop_list=None):
         self.tokenizer = tokenizer
         selfies = [line.split()[0] for line in open(file, 'r')]
         # pool = multiprocessing.Pool(processes=cpus)
@@ -70,18 +70,21 @@ class TokenizedWPadDataset(Dataset):
         self.symbol_to_idx = {s: i for i, s in enumerate(self.alphabet)}
         self.idx_to_symbol = {i: s for i, s in enumerate(self.alphabet)}
         self.encodings = [([self.symbol_to_idx[symbol] for symbol in sf.split_selfies(s)] + [self.symbol_to_idx['[nop]']]) for s in selfies]
-        self.conditional = conditional
-        if conditional:
+        self.load_prop_list = load_prop_list
+        if self.load_prop_list is not None:
+            self.props = [{} for s in selfies]
             prop_file = f'data/properties/{os.path.basename(file).replace(".txt", ".json")}'
             if os.path.exists(prop_file):
                 props = json.load(open(prop_file, "r"))
-                self.props = [props[s] for s in selfies]
             else:
                 os.makedirs("data/properties/", exist_ok=True)
                 props = json.load(open("data/zinc250k.json","r"))
-                prop_dict = {tokenizer.encoder(k):v for k,v in tqdm(props.items(), desc="generating prop dict")}
+                prop_dict = {k:v for k,v in tqdm(props.items(), desc="generating prop dict")}
                 json.dump(prop_dict, open(prop_file, "w+"))
-                self.props = [prop_dict[s] for s in selfies]
+
+            for i,s in enumerate(selfies):
+                self.props[i].update(props[str(i)])
+
         print(f"Alphabet len is {len(self.alphabet)}, max len is {self.max_len}")
         print(f"Avg encoding len {np.mean([len(e) for e in self.encodings])}")
 
@@ -92,9 +95,10 @@ class TokenizedWPadDataset(Dataset):
         item = {
             "x": torch.tensor(self.encodings[i] + [self.symbol_to_idx['[pad]'] for _ in range(self.max_len - len(self.encodings[i]))]),
         }
-        if self.conditional:
+        if self.load_prop_list is not None:
             item["sa"] = (torch.tensor([self.props[i]["sa"]]) - SA_MEAN) / SA_STD
             item["qed"]= (torch.tensor([self.props[i]["qed"]]) - QED_MEAN) / QED_STD
+            item["ba"] = (torch.tensor([self.props[i]["ba"]]) - BA_MEAN) / BA_STD
         return item
     
     def smiles_to_indices(self, smiles):
@@ -115,7 +119,7 @@ class TokenizedWPadDataset(Dataset):
     
 
 class TokenizedDataset(Dataset):
-    def __init__(self, file, tokenizer: BaseTokenizer, conditional=False):
+    def __init__(self, file, tokenizer: BaseTokenizer, load_prop_list=None):
         self.tokenizer = tokenizer
         selfies = [line.split()[0] for line in open(file, 'r')]
         # pool = multiprocessing.Pool(processes=cpus)
@@ -130,8 +134,8 @@ class TokenizedDataset(Dataset):
         self.symbol_to_idx = {s: i for i, s in enumerate(self.alphabet)}
         self.idx_to_symbol = {i: s for i, s in enumerate(self.alphabet)}
         self.encodings = [[self.symbol_to_idx[symbol] for symbol in sf.split_selfies(s)] for s in selfies]
-        self.conditional = conditional
-        if conditional:
+        self.load_prop_list = load_prop_list
+        if load_prop_list is not None:
             prop_file = f'data/properties/{os.path.basename(file).replace(".txt", ".json")}'
             if os.path.exists(prop_file):
                 props = json.load(open(prop_file, "r"))
