@@ -247,13 +247,13 @@ class LIMO:
                     )
                     optimizer = torch.optim.Adam(
                         [
-                            dict(params=[z], lr=1),
-                            dict(params=weight_method.parameters(), lr=1),
+                            dict(params=[z], lr=0.1),
+                            dict(params=weight_method.parameters(), lr=0.1),
                         ],
                     )
                     # optimizer = PCGrad(optim.Adam([z], lr=0.1))
                 else:
-                    optimizer = optim.Adam([z], lr=1)
+                    optimizer = optim.Adam([z], lr=0.1)
                 losses = []
                 for epoch in tqdm.tqdm(range(num_steps), desc='generating molecules'):
                     loss = 0
