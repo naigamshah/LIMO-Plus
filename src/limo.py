@@ -298,7 +298,7 @@ class LIMO:
             #weights = {'sa': 2, 'qed': -8}
             z = get_optimized_z(weights, num_mols)
 
-            # pickle.dump(z.cpu(), open("temp/optimized_z_train.pkl", "wb"))
+            pickle.dump(z.cpu(), open(f"temp/optimized_z_{self.save_model_suffix}.pkl", "wb"))
             
             with torch.no_grad():
                 x = torch.exp(gen_model.decode(z))
