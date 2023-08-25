@@ -135,17 +135,19 @@ class TokenizedDataset(Dataset):
         self.idx_to_symbol = {i: s for i, s in enumerate(self.alphabet)}
         self.encodings = [[self.symbol_to_idx[symbol] for symbol in sf.split_selfies(s)] for s in selfies]
         self.load_prop_list = load_prop_list
-        if load_prop_list is not None:
+        if self.load_prop_list is not None:
+            self.props = [{} for s in selfies]
             prop_file = f'data/properties/{os.path.basename(file).replace(".txt", ".json")}'
             if os.path.exists(prop_file):
                 props = json.load(open(prop_file, "r"))
-                self.props = [props[s] for s in selfies]
             else:
                 os.makedirs("data/properties/", exist_ok=True)
                 props = json.load(open("data/zinc250k.json","r"))
-                prop_dict = {s:props[CanonSmiles(tokenizer.decoder(s))] for s in selfies}
+                prop_dict = {k:v for k,v in tqdm(props.items(), desc="generating prop dict")}
                 json.dump(prop_dict, open(prop_file, "w+"))
-                self.props = [prop_dict[s] for s in selfies]
+
+            for i,s in enumerate(selfies):
+                self.props[i].update(props[str(i)])
         print(f"Alphabet len is {len(self.alphabet)}, max len is {self.max_len}")
         print(f"Avg encoding len {np.mean([len(e) for e in self.encodings])}")
 
@@ -156,9 +158,10 @@ class TokenizedDataset(Dataset):
         item = {
             "x": torch.tensor(self.encodings[i] + [self.symbol_to_idx['[nop]'] for _ in range(self.max_len - len(self.encodings[i]))]),
         }
-        if self.conditional:
-            item["sa"] = torch.tensor([self.props[i]["sa"]]) / SA_SCALING
-            item["qed"]= torch.tensor([self.props[i]["qed"]]) / QED_SCALING
+        if self.load_prop_list is not None:
+            item["sa"] = (torch.tensor([self.props[i]["sa"]]) - SA_MEAN) / SA_STD
+            item["qed"]= (torch.tensor([self.props[i]["qed"]]) - QED_MEAN) / QED_STD
+            item["ba"] = (torch.tensor([self.props[i]["ba"]]) - BA_MEAN) / BA_STD
         return item
     
     def smiles_to_indices(self, smiles):
