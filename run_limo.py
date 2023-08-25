@@ -55,8 +55,8 @@ def main():
         print(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{exp_suffix}:{model_type} Generating molecules with opt method {opt_method}", flush=True, file=open(log_file, "a+"))
         if (model_type == "vae") or (model_type == "vae_t"):
             opt_prop = "moba"
-            sa_cut_off = 5.5
-            qed_cut_off = 0.4
+            sa_cut_off = 11
+            qed_cut_off = -1
         else:
             opt_prop = "ba"
             sa_cut_off = 11
