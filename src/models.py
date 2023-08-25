@@ -94,9 +94,8 @@ class VAE(pl.LightningModule):
         eps = torch.randn_like(std)
         return mu + eps * std, mu, log_var
     
-    def decode(self, **input):
-        x = input['x']
-        return F.log_softmax(self.decoder(x).view((-1, self.max_len, self.vocab_len)), dim=2).view((-1, self.max_len * self.vocab_len))
+    def decode(self, z):
+        return F.log_softmax(self.decoder(z).view((-1, self.max_len, self.vocab_len)), dim=2).view((-1, self.max_len * self.vocab_len))
     
     def forward(self, **input):
         x = input['x']
