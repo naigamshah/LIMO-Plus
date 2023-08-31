@@ -130,7 +130,7 @@ class VAE(pl.LightningModule):
     def surr_loss_function(self, surr_dict, input_batch):
         surr_loss = 0
         for k in self.surr_properties:
-            surr_loss += 100*F.mse_loss(surr_dict[k], input_batch[k])
+            surr_loss += 10*F.mse_loss(surr_dict[k], input_batch[k])
         return surr_loss            
     
     def training_step(self, train_batch, batch_idx):

@@ -20,8 +20,8 @@ def main():
     # metric = DecodeLoss()
     loss_type = args.type
     seed = args.seed
-    model_type = "vae"
-    exp_name = "default"
+    model_type = "vae_t"
+    exp_name = "zsurr"
     tokenizer = "selfies"
     token_file = TOKENIZER_CONFIGS["selfies"]["token_file"]
     limo = LIMO(token_file=token_file, tokenizer=tokenizer, model_type=model_type, exp_name=exp_name)
@@ -36,17 +36,19 @@ def main():
     else:
         device = torch.device("cpu")
         num_devices = 1
-    dm, model = limo.get_dm_model(True)
+    dm_model = limo.get_dm_model(load_from_ckpt=True)
+    dm, model = dm_model["dm"], dm_model["gen_model"]
+    model.to(device)
     model.eval()
 
-    weights = {'ba': 5, 'sa': 2, 'qed': -8}
+    weights = {'sa': 2, 'qed': -8, 'ba': 5}
     props = {'logp': smiles_to_logp, 
             'penalized_logp': smiles_to_penalized_logp, 
             'qed': smiles_to_qed, 
             'sa': smiles_to_sa,
             'ba': lambda x: smiles_to_affinity(x, limo.autodock_executable, limo.protein_file, num_devices=num_devices)}
             
-    def get_real_loss(x, weights):
+    def get_real_loss(x, weights, z=None):
         loss_d = {}
         with torch.no_grad():
             for idx,prop_name in enumerate(weights):
@@ -55,29 +57,37 @@ def main():
                 loss_d[prop_name]= np.array(prop_val) #* weights[prop_name]
         return loss_d
 
-    def get_property_loss(x, weights):
+    def get_property_loss(x, weights, z=None):
         models = []
         #loss = 0 
         loss_d = {}
+        
         with torch.no_grad():
-            for idx,prop_name in enumerate(weights):
-                #print(idx, prop_name)
-                models.append(PropertyPredictor(dm.dataset.max_len * len(dm.dataset.symbol_to_idx)))
-                models[-1].load_state_dict(torch.load(f'{PROP_MODELS_SAVE}/{prop_name}_{limo.save_model_suffix}.pt', map_location="cpu"))
-                models[-1] = models[-1].to(device)
-                prop_val = models[-1](x.to(model.device)).cpu()
-                #loss += prop_val * weights[prop_name]
-                loss_d[prop_name] = prop_val #* weights[prop_name]
+            if model.use_z_surrogate:
+                for idx,prop_name in enumerate(weights):
+                    models.append(model.z_surrogates[prop_name])
+                    prop_val = models[-1](z.to(model.device)).cpu()
+                    #loss += prop_val * weights[prop_name]
+                    loss_d[prop_name] = prop_val #* weights[prop_name]
+            else:
+                for idx,prop_name in enumerate(weights):
+                    #print(idx, prop_name)
+                    models.append(PropertyPredictor(dm.dataset.max_len * len(dm.dataset.symbol_to_idx)))
+                    models[-1].load_state_dict(torch.load(f'{PROP_MODELS_SAVE}/{prop_name}_{limo.save_model_suffix}.pt', map_location="cpu"))
+                    models[-1] = models[-1].to(device)
+                    prop_val = models[-1](x.to(model.device)).cpu()
+                    #loss += prop_val * weights[prop_name]
+                    loss_d[prop_name] = prop_val #* weights[prop_name]
         return loss_d
     
     def zToPredloss(z):
         with torch.no_grad():
-            x = torch.exp(model.decode(z))
+            x = torch.exp(model.decode(z.to(device)))
             #print(z)
             if loss_type == "real":
-                l = get_real_loss(x, weights)
+                l = get_real_loss(x, weights, z)
             else:
-                l = get_property_loss(x, weights)
+                l = get_property_loss(x, weights, z)
             return l
 
     # class DecodeLoss(Metric):
@@ -104,15 +114,15 @@ def main():
     os.environ["PYTHONHASHSEED"] = str(seed)
     print(f"Random seed set as {seed}")
 
-    zs = pickle.load(open("temp/optimized_z.pkl", "rb"))
-    losses = zToPredloss(zs)
-    pickle.dump(losses, open(f"temp/landscape_{loss_type}_{limo.save_model_suffix}_optimized_real_losses.pkl", "wb"))
-    return
+    # zs = pickle.load(open(f"temp/optimized_z_{limo.checkpoi}.pkl", "rb"))
+    # losses = zToPredloss(zs)
+    # pickle.dump(losses, open(f"temp/landscape_{loss_type}_{limo.save_model_suffix}_optimized_real_losses.pkl", "wb"))
+    # return
 
     if args.start_idx == -1:
         start = torch.zeros(model.latent_dim)
     else:
-        start = pickle.load(open("temp/optimized_z.pkl", "rb"))[args.start_idx] #torch.zeros(model.latent_dim)
+        start = pickle.load(open(f"temp/optimized_z_{limo.save_model_suffix}.pkl", "rb"))[args.start_idx] #torch.zeros(model.latent_dim)
 
     print("start_norm", start.norm())
     d1 = torch.randn(model.latent_dim)
@@ -123,8 +133,8 @@ def main():
     d2 /= d2.norm()
 
     point_list = []
-    distance = 40
-    num_steps = 25
+    distance = 100
+    num_steps = 50
     step = 2 * distance / num_steps
     pos_list = []
     for i in range(-num_steps//2, num_steps//2):

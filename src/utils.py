@@ -129,7 +129,7 @@ def smiles_to_affinity(smiles, autodock, protein_file, num_devices=torch.cuda.de
         else:
             ps = []
             for device in range(num_devices):
-                ps.append(subprocess.Popen(f'{autodock} -M {protein_file} -s 0 -B {temp_folder}/ligands/{device}/ligand*.pdbqt -N ../../outs/ -D {device + 1}', shell=True, stdout=subprocess.DEVNULL))
+                ps.append(subprocess.Popen(f'{autodock} -M {protein_file} -s 0 -B {temp_folder}/ligands/{device}/ligand*.pdbqt -N ../../outs/ -D {device + 1} -n 5', shell=True, stdout=subprocess.DEVNULL))
             stop = False
             while not stop: 
                 for p in ps:
