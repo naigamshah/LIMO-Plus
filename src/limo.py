@@ -59,7 +59,7 @@ class LIMO:
         else: 
             modelClass = VAE
             load_prop_list = ["ba", "sa", "qed"]
-            latent_dim=1024
+            latent_dim=128
             embedding_dim=64
             batch_size = 1024
             prop_dim = latent_dim
