@@ -135,10 +135,10 @@ class VAE(pl.LightningModule):
     
     def training_step(self, train_batch, batch_idx):
         out, z, mu, log_var = self(**train_batch)
-        surr_dict = self.surr_forward(z)
         p = 0.1 * (min((self.global_step % 1000) / 1000, 0.5)*2) # 0.01 #min(self.current_epoch/10, 0.1)  #0.1
         loss, nll, kld = self.loss_function(out.reshape((-1, self.vocab_len)), train_batch["x"].flatten(), mu, log_var, len(train_batch["x"]), p)
         if self.use_z_surrogate:    
+            surr_dict = self.surr_forward(z)
             surr_losses = self.surr_loss_function(surr_dict, train_batch)
             loss += surr_losses
             self.log('train_surr_loss', surr_losses)
@@ -149,10 +149,10 @@ class VAE(pl.LightningModule):
         
     def validation_step(self, val_batch, batch_idx):
         out, z, mu, log_var = self(**val_batch)
-        surr_dict = self.surr_forward(z)
         p = 0.1 * (min((self.global_step % 1000) / 1000, 0.5)*2) # 0.01 #min(self.current_epoch/10, 0.1)  #0.1
         loss, nll, kld = self.loss_function(out.reshape((-1, self.vocab_len)), val_batch["x"].flatten(), mu, log_var, len(val_batch["x"]), p)
         if self.use_z_surrogate:    
+            surr_dict = self.surr_forward(z)
             surr_losses = self.surr_loss_function(surr_dict, val_batch)
             loss += surr_losses
             self.log('train_surr_loss', surr_losses)
