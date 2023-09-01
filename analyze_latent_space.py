@@ -109,11 +109,12 @@ def main():
     qed = np.array(data_dict["qed"])
     ba = np.array(data_dict["ba"])
 
-    selected_pts = np.random.permutation(z.shape[0])
+    # selected_pts = np.random.permutation(z.shape[0])
 
     print("Total smoothness")
     #get_smoothnes_kNN_sparse(z[selected_pts], (sa*weights["sa"]+qed*weights["qed"]+ba*weights["ba"])[selected_pts])
-    engy_dist = get_dirichlet_energy(z[selected_pts], (sa*weights["sa"]+qed*weights["qed"]+ba*weights["ba"])[selected_pts])
+    #engy_dist = get_dirichlet_energy(z[selected_pts], (sa*weights["sa"]+qed*weights["qed"]+ba*weights["ba"])[selected_pts])
+    engy_dist = get_dirichlet_energy_faiss(z, (sa*weights["sa"]+qed*weights["qed"]+ba*weights["ba"]))
     with open(f"temp/dir_dist_{limo.save_model_suffix}.pkl", "wb") as f:
         pickle.dump(engy_dist, f)
 
