@@ -1,7 +1,6 @@
 import loss_landscapes
 import torch 
 from src.models import VAEFormer, PropertyPredictor
-from loss_landscapes.metrics import Metric
 from src.limo import LIMO
 from src.constants import *
 from src.utils import *
@@ -94,7 +93,7 @@ def main():
             for batch in iter(dm.train_dataloader()):
                 #print(batch)
                 x, sa, qed, ba = batch["x"], batch["sa"], batch["qed"], batch["ba"]
-                z = model.encode(x)[0]
+                z = model.encode(x.to(model.device))[0]
                 for i in range(z.shape[0]):
                     data_dict["z"].append(z[i].cpu().detach().float().numpy()) 
                     data_dict["sa"].append(sa[i].cpu().detach().float().numpy()*SA_STD+SA_MEAN)

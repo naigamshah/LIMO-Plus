@@ -9,8 +9,6 @@ from src.dataloaders import MolDataModule, PropDataModule
 from src.constants import *
 from src.tokenizers import *
 import datetime
-from src.pcgrad import PCGrad
-from src.optimizers.opt_methods import *
 
 class LIMO:
     def __init__(self, token_file, tokenizer, model_type="vae", exp_name="default") -> None:
@@ -215,6 +213,10 @@ class LIMO:
         else:
             device = torch.device("cpu")
             num_devices = 1
+
+        if opt_method != "default":
+            from src.pcgrad import PCGrad
+            from src.optimizers.opt_methods import WeightMethods
 
         dm_model = self.get_dm_model(load_from_ckpt=True)
         dm, gen_model = dm_model["dm"], dm_model["gen_model"]
