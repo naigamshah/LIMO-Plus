@@ -62,16 +62,16 @@ class LIMO:
             batch_size = 256
             prop_dim = latent_dim
             autoreg = True
-            use_z_surrogate = True
+            use_z_surrogate = True if "zsurr" in self.exp_name else False
         else: 
             modelClass = VAE
             load_prop_list = ["ba", "sa", "qed"]
-            latent_dim=128
+            latent_dim=1024
             embedding_dim=64
             batch_size = 1024
             prop_dim = latent_dim
             autoreg = False
-            use_z_surrogate = True
+            use_z_surrogate = True if "zsurr" in self.exp_name else False
 
         dm = MolDataModule(batch_size, token_loc, tokenizer_model, load_prop_list=load_prop_list, wpad=autoreg)
         

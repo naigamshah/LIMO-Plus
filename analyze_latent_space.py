@@ -54,24 +54,24 @@ def main():
     limo = LIMO(token_file=token_file, tokenizer=tokenizer, model_type=model_type, exp_name=exp_name)
 
 
-    custom_config = dict(
-        # modelClass = VAEFormer,
-        # load_prop_list = ["ba", "sa", "qed"],
-        # latent_dim=128,
-        # embedding_dim=128,
-        # batch_size = 256,
-        # autoreg = True,
-        # use_z_surrogate = True
+    # custom_config = dict(
+    #     # modelClass = VAEFormer,
+    #     # load_prop_list = ["ba", "sa", "qed"],
+    #     # latent_dim=128,
+    #     # embedding_dim=128,
+    #     # batch_size = 256,
+    #     # autoreg = True,
+    #     # use_z_surrogate = True
 
-        modelClass = VAE,
-        load_prop_list = ["ba", "sa", "qed"],
-        latent_dim=1024,
-        embedding_dim=64,
-        batch_size = 1024,
-        autoreg = False,
-        use_z_surrogate = True,
-    )
-    dm_model = limo.get_dm_model(load_from_ckpt=True, custom=custom_config)
+    #     modelClass = VAE,
+    #     load_prop_list = ["ba", "sa", "qed"],
+    #     latent_dim=1024,
+    #     embedding_dim=64,
+    #     batch_size = 1024,
+    #     autoreg = False,
+    #     use_z_surrogate = True if "zsurr" in exp_name else False,
+    # )
+    dm_model = limo.get_dm_model(load_from_ckpt=True)
     dm, model = dm_model["dm"], dm_model["gen_model"]
     model.to(device)
     model.eval()
