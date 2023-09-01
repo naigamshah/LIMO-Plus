@@ -10,6 +10,7 @@ import scipy
 from scipy import stats
 from scipy.spatial import distance as scidist
 from sklearn.neighbors import kneighbors_graph
+from sklearn.neighbors import NearestNeighbors
 from scipy.spatial.distance import hamming
 
 import networkx as nx
@@ -74,6 +75,42 @@ def get_smoothnes_rbf(embeddings, energies, beta):
 
     return lap_smooth.item()
 
+def get_dirichlet_energy_faiss(embeddings, energies, K=5):
+    import faiss
+    index = faiss.IndexFlatL2(embeddings.shape[1])
+    index.add(embeddings.astype(np.float32))
+    _, indices = index.search(embeddings.astype(np.float32), k=K)
+    lap_dist = []
+    for i in tqdm(range(embeddings.shape[0])):
+        #dists = np.linalg.norm(embeddings[i][None, :]-embeddings, axis=-1) 
+        #indices = np.argpartition(dists, 4)[:4]
+        lap_val = 0
+        for j in indices[i]:
+            sq_diff = (energies[i] - energies[j])**2
+            lap_val += sq_diff
+        lap_val /= indices.shape[1]
+        lap_dist.append(lap_val)
+    
+    print(f"Smoothness = {np.mean(np.array(lap_dist))}")
+    return lap_dist
+
+def get_dirichlet_energy(embeddings, energies, K=5):
+    nn = NearestNeighbors(n_neighbors=K, algorithm="kd_tree").fit(embeddings)
+    lap_dist = []
+    _, indices = nn.kneighbors(embeddings[:, :])
+    for i in tqdm(range(embeddings.shape[0])):
+        #dists = np.linalg.norm(embeddings[i][None, :]-embeddings, axis=-1) 
+        #indices = np.argpartition(dists, 4)[:4]
+        lap_val = 0
+        for j in indices[i]:
+            sq_diff = (energies[i] - energies[j])**2
+            lap_val += sq_diff
+        lap_val /= indices.shape[1]
+        lap_dist.append(lap_val)
+    
+    print(f"Smoothness = {np.mean(np.array(lap_dist))}")
+    return lap_dist
+
 
 def get_smoothnes_kNN_sparse(embeddings, energies, K=5):
     """ kNN based graph for smoothness calc
@@ -98,14 +135,16 @@ def get_smoothnes_kNN_sparse(embeddings, energies, K=5):
     # compute smoothness index
     print("computing smoothness value")
     lap_smooth = 0
-
+    lap_smooth_dist = []
     for i, j in zip(A_coo.row, A_coo.col):
         if i < j and A[j, i] == 1:
-            lap_smooth += (energies[i] - energies[j])**2
+            sq_diff = (energies[i] - energies[j])**2
+            lap_smooth += sq_diff
+            lap_smooth_dist.append(sq_diff)
 
     print("smoothness for K={}: {}".format(K, lap_smooth.item()))
 
-    return lap_smooth.item()
+    return lap_smooth_dist #lap_smooth.item()
 
 
 def get_smoothnes_knn_weighted(embeddings, energies, K=5):
@@ -138,11 +177,12 @@ def get_smoothnes_knn_weighted(embeddings, energies, K=5):
     print("computing smoothness value")
     binary_lap_smooth = 0
     weighted_lap_smooth = 0
-
+    lap_smooth_dist = []
     for i, j in zip(A_coo.row, A_coo.col):
         if i < j and A[i,j] != 0:
 
             sqrd_diff = (energies[i] - energies[j])**2 # squared diff
+            lap_smooth_dist.append(sqrd_diff)
 
             # binary case
             binary_lap_smooth += sqrd_diff
@@ -154,7 +194,7 @@ def get_smoothnes_knn_weighted(embeddings, energies, K=5):
     print(" binary smoothness for K={}: {}".format(K, binary_lap_smooth.item()))
     print(" weighted smoothness for K={}: {}".format(K, weighted_lap_smooth.item()))
 
-    return binary_lap_smooth.item(), weighted_lap_smooth.item()
+    return lap_smooth_dist #binary_lap_smooth.item(), weighted_lap_smooth.item()
 
 
 def get_binary_knn_smooth(embeddings, fitness_vec, K=5):

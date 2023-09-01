@@ -24,12 +24,21 @@ class LIMO:
         self.save_logs_suffix = f'{self.model_type}/{self.tokenizer}/{self.exp_name}'
         self.save_model_suffix = f'{self.model_type}_{self.tokenizer}_{self.exp_name}'
 
-    def get_dm_model(self, load_from_ckpt=False):
+    def get_dm_model(self, load_from_ckpt=False, custom=None):
         exp_suffix = self.tokenizer
         tokenizer_model = choose_tokenizer(self.tokenizer)
         token_loc = self.token_file
 
-        if self.model_type == "cvae":
+        if custom is not None:
+            modelClass = custom["modelClass"]
+            load_prop_list = custom["load_prop_list"]
+            latent_dim=custom["latent_dim"]
+            embedding_dim=custom["embedding_dim"]
+            batch_size = custom["batch_size"]
+            prop_dim = latent_dim
+            autoreg = custom["autoreg"]
+            use_z_surrogate = custom["use_z_surrogate"]
+        elif self.model_type == "cvae":
             modelClass = cVAE
             load_prop_list = None
             latent_dim=1024
