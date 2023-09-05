@@ -47,6 +47,7 @@ class VAE(pl.LightningModule):
         self.embedding_dim = embedding_dim
         self.autoreg = autoreg
         self.use_z_surrogate = use_z_surrogate
+        self.independent_surrogate = True
         self.init_modules()  
 
         self.surr_properties = ["sa", "qed", "ba"]
@@ -137,8 +138,11 @@ class VAE(pl.LightningModule):
         out, z, mu, log_var = self(**train_batch)
         p = 0.1 * (min((self.global_step % 1000) / 1000, 0.5)*2) # 0.01 #min(self.current_epoch/10, 0.1)  #0.1
         loss, nll, kld = self.loss_function(out.reshape((-1, self.vocab_len)), train_batch["x"].flatten(), mu, log_var, len(train_batch["x"]), p)
-        if self.use_z_surrogate:    
-            surr_dict = self.surr_forward(z)
+        if self.use_z_surrogate:
+            if self.independent_surrogate:
+                surr_dict = self.surr_forward(z.detach())
+            else:
+                surr_dict = self.surr_forward(z)
             surr_losses = self.surr_loss_function(surr_dict, train_batch)
             loss += surr_losses
             self.log('train_surr_loss', surr_losses)
@@ -152,7 +156,10 @@ class VAE(pl.LightningModule):
         p = 0.1 * (min((self.global_step % 1000) / 1000, 0.5)*2) # 0.01 #min(self.current_epoch/10, 0.1)  #0.1
         loss, nll, kld = self.loss_function(out.reshape((-1, self.vocab_len)), val_batch["x"].flatten(), mu, log_var, len(val_batch["x"]), p)
         if self.use_z_surrogate:    
-            surr_dict = self.surr_forward(z)
+            if self.independent_surrogate:
+                surr_dict = self.surr_forward(z.detach())
+            else:
+                surr_dict = self.surr_forward(z)
             surr_losses = self.surr_loss_function(surr_dict, val_batch)
             loss += surr_losses
             self.log('train_surr_loss', surr_losses)

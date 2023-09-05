@@ -109,7 +109,7 @@ def main():
     qed = np.array(data_dict["qed"])
     ba = np.array(data_dict["ba"])
 
-    # selected_pts = np.random.permutation(z.shape[0])
+    #selected_pts = np.random.permutation(z.shape[0])[:10000]
 
     print("Total smoothness")
     #get_smoothnes_kNN_sparse(z[selected_pts], (sa*weights["sa"]+qed*weights["qed"]+ba*weights["ba"])[selected_pts])

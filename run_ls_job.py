@@ -12,7 +12,7 @@ f'''
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: vthumuluri-job-ls-{args.config}-{args.model_type}-{args.exp_name}
+  name: vthumuluri-job-ls-{args.config}-{args.model_type.replace("_","-")}-{args.exp_name}
   namespace: ai-md
   labels:
     user: vthumuluri
@@ -37,7 +37,7 @@ spec:
           - "sh"
           - "-c"
         args:
-          - "cd /home/AIMD && conda init && . /opt/conda/etc/profile.d/conda.sh && conda activate pytorch && pip install cmake cvxpy && pip install loss-landscapes && python plot_loss_landscapes.py --seed {args.seed} --type {args.type} --start_idx {args.start_idx}"
+          - "cd /home/AIMD && conda init && . /opt/conda/etc/profile.d/conda.sh && conda activate pytorch && pip install cmake cvxpy faiss-gpu && pip install loss-landscapes && python analyze_latent_space.py --config {args.config} --model_type {args.model_type} --exp_name {args.exp_name}"
         resources:
           requests:
             cpu: "12"
@@ -46,7 +46,7 @@ spec:
             ephemeral-storage: 10Gi
           limits:
             cpu: "12"
-            memory: "6Gi"
+            memory: "16Gi"
             nvidia.com/gpu: 0
             ephemeral-storage: 10Gi
         volumeMounts:
