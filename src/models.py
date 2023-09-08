@@ -140,7 +140,7 @@ class VAE(pl.LightningModule):
         loss, nll, kld = self.loss_function(out.reshape((-1, self.vocab_len)), train_batch["x"].flatten(), mu, log_var, len(train_batch["x"]), p)
         if self.use_z_surrogate:
             if self.independent_surrogate:
-                surr_dict = self.surr_forward(z.detach())
+                surr_dict = self.surr_forward(z.clone().detach())
             else:
                 surr_dict = self.surr_forward(z)
             surr_losses = self.surr_loss_function(surr_dict, train_batch)
@@ -157,7 +157,7 @@ class VAE(pl.LightningModule):
         loss, nll, kld = self.loss_function(out.reshape((-1, self.vocab_len)), val_batch["x"].flatten(), mu, log_var, len(val_batch["x"]), p)
         if self.use_z_surrogate:    
             if self.independent_surrogate:
-                surr_dict = self.surr_forward(z.detach())
+                surr_dict = self.surr_forward(z.clone().detach())
             else:
                 surr_dict = self.surr_forward(z)
             surr_losses = self.surr_loss_function(surr_dict, val_batch)
