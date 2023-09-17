@@ -12,7 +12,6 @@ from scipy.spatial import distance as scidist
 from sklearn.neighbors import kneighbors_graph
 from sklearn.neighbors import NearestNeighbors
 from scipy.spatial.distance import hamming
-
 import networkx as nx
 
 from numpy import linalg as LA
@@ -28,6 +27,9 @@ def get_pearson_r2(x, y):
 
 def get_spearman_r2(x, y):
     return stats.spearmanr(x, y)[0]
+
+def get_kendall_r2(x, y):
+    return stats.kendalltau(x, y)[0]
 
 
 """
@@ -93,6 +95,30 @@ def get_dirichlet_energy_faiss(embeddings, energies, K=5):
     
     print(f"Smoothness = {np.mean(np.array(lap_dist))}")
     return lap_dist
+
+def get_corr(embeddings, energies_r, energies_s, K=20):
+    import faiss
+    
+    index = faiss.IndexFlatL2(embeddings.shape[1])
+    index.add(embeddings.astype(np.float32))
+    _, indices = index.search(embeddings.astype(np.float32), k=K)
+    p_corr = []
+    s_corr = []
+    k_corr = []
+    for i in tqdm(range(embeddings.shape[0])):
+        #dists = np.linalg.norm(embeddings[i][None, :]-embeddings, axis=-1) 
+        #indices = np.argpartition(dists, 4)[:4]
+        lap_val = 0
+        r_vals = []
+        s_vals = []
+        for j in indices[i]:
+            r_vals.append(energies_r[j])
+            s_vals.append(energies_s[j])
+        p_corr.append(get_pearson_r2(r_vals, s_vals))
+        s_corr.append(get_spearman_r2(r_vals, s_vals))
+        k_corr.append(get_kendall_r2(r_vals, s_vals))
+    
+    return {"pearson": p_corr, "spearman": s_corr, "kendall": k_corr}
 
 def get_dirichlet_energy(embeddings, energies, K=5):
     nn = NearestNeighbors(n_neighbors=K, algorithm="kd_tree").fit(embeddings)

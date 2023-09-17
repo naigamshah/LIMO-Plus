@@ -111,12 +111,21 @@ def main():
 
     #selected_pts = np.random.permutation(z.shape[0])[:10000]
 
-    print("Total smoothness")
+    #print("Total smoothness")
+    surr_val = 0
+    with torch.no_grad():
+        surr_dict = model.surr_forward(z)
+        for k in weights:
+            surr_val += surr_dict[k]*weights[k]
+    real_val = (sa*weights["sa"]+qed*weights["qed"]+ba*weights["ba"])
+    print("Total corr")
     #get_smoothnes_kNN_sparse(z[selected_pts], (sa*weights["sa"]+qed*weights["qed"]+ba*weights["ba"])[selected_pts])
     #engy_dist = get_dirichlet_energy(z[selected_pts], (sa*weights["sa"]+qed*weights["qed"]+ba*weights["ba"])[selected_pts])
-    engy_dist = get_dirichlet_energy_faiss(z, (sa*weights["sa"]+qed*weights["qed"]+ba*weights["ba"]))
-    with open(f"temp/dir_dist_{limo.save_model_suffix}.pkl", "wb") as f:
-        pickle.dump(engy_dist, f)
+    #engy_dist = get_dirichlet_energy_faiss(z, (sa*weights["sa"]+qed*weights["qed"]+ba*weights["ba"]))
+    diff_dist = get_corr(z, real_val, surr_val)
+
+    with open(f"temp/corr_dist_{limo.save_model_suffix}.pkl", "wb") as f:
+        pickle.dump(diff_dist, f)
 
 if __name__ == '__main__':
     main()

@@ -47,7 +47,7 @@ class VAE(pl.LightningModule):
         self.embedding_dim = embedding_dim
         self.autoreg = autoreg
         self.use_z_surrogate = use_z_surrogate
-        self.independent_surrogate = True
+        self.independent_surrogate = False
         self.init_modules()  
 
         self.surr_properties = ["sa", "qed", "ba"]
