@@ -112,8 +112,8 @@ def get_corr(embeddings, energies_r, energies_s, K=20):
         r_vals = []
         s_vals = []
         for j in indices[i]:
-            r_vals.append(energies_r[j])
-            s_vals.append(energies_s[j])
+            r_vals.append(energies_r[j, 0])
+            s_vals.append(energies_s[j, 0])
         p_corr.append(get_pearson_r2(r_vals, s_vals))
         s_corr.append(get_spearman_r2(r_vals, s_vals))
         k_corr.append(get_kendall_r2(r_vals, s_vals))
