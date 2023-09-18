@@ -110,13 +110,23 @@ def main():
     ba = np.array(data_dict["ba"])
 
     #selected_pts = np.random.permutation(z.shape[0])[:10000]
-
     #print("Total smoothness")
     surr_val = 0
     with torch.no_grad():
-        surr_dict = model.surr_forward(z)
-        for k in weights:
-            surr_val += surr_dict[k]*weights[k]
+        models = []
+        z_inp = torch.tensor(z).to(model.device)
+        if model.use_z_surrogate:
+            for idx,prop_name in enumerate(weights):
+                surr_val += weights[prop_name] * model.z_surrogates[prop_name](z_inp)
+        else:
+            probs = torch.exp(model.decode(z_inp))
+            for idx,prop_name in enumerate(weights):
+                #print(idx, prop_name)
+                models.append(PropertyPredictor(dm.dataset.max_len * len(dm.dataset.symbol_to_idx)))
+                models[-1].load_state_dict(torch.load(f'{PROP_MODELS_SAVE}/{prop_name}_{limo.save_model_suffix}.pt', map_location="cpu"))
+                models[-1] = models[-1].to(device)
+                surr_val += weights[prop_name] * models[-1](probs)
+
     real_val = (sa*weights["sa"]+qed*weights["qed"]+ba*weights["ba"])
     print("Total corr")
     #get_smoothnes_kNN_sparse(z[selected_pts], (sa*weights["sa"]+qed*weights["qed"]+ba*weights["ba"])[selected_pts])
