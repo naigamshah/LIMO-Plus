@@ -90,7 +90,7 @@ def main():
     else:
         data_dict = {"z": [], "sa": [], "qed": [], "ba": []}
         with torch.no_grad():
-            for batch in iter(dm.train_dataloader()):
+            for batch in iter(dm.val_dataloader()):
                 #print(batch)
                 x, sa, qed, ba = batch["x"], batch["sa"], batch["qed"], batch["ba"]
                 z = model.encode(x.to(model.device))[0]
@@ -133,11 +133,13 @@ def main():
                 surr_val += weights[prop_name] * models[-1](probs)
 
     real_val = (sa*weights["sa"]+qed*weights["qed"]+ba*weights["ba"])
+    print()
     print("Total corr")
     #get_smoothnes_kNN_sparse(z[selected_pts], (sa*weights["sa"]+qed*weights["qed"]+ba*weights["ba"])[selected_pts])
     #engy_dist = get_dirichlet_energy(z[selected_pts], (sa*weights["sa"]+qed*weights["qed"]+ba*weights["ba"])[selected_pts])
     #engy_dist = get_dirichlet_energy_faiss(z, (sa*weights["sa"]+qed*weights["qed"]+ba*weights["ba"]))
     diff_dist = get_corr(z, real_val, surr_val)
+    diff_dist["MSE"] = torch.nn.functional.mse_loss(torch.tensor(real_val), surr_val).item()
 
     with open(f"temp/corr_dist_{limo.save_model_suffix}.pkl", "wb") as f:
         pickle.dump(diff_dist, f)
