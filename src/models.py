@@ -273,7 +273,116 @@ class VAEFormer(VAE):
         x = input['x']
         z, mu, log_var = self.encode(x)
         return self.decode(z, x), z, mu, log_var
+
+class CMLMC(VAE):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+    def init_modules(self):
+        self.inp_emb = nn.Embedding(self.vocab_len, self.embedding_dim)
+        self.lm_head = nn.Linear(self.embedding_dim, self.vocab_len, bias=False)
+        self.inp_emb.weight = self.lm_head.weight # weight tying
+        self.time_emb = nn.Parameter(0.02*torch.randn(1, self.max_len, self.embedding_dim))
+
+        self.z_emb = nn.Parameter(0.02*torch.randn(1, self.embedding_dim))
+        self.reparametrize = nn.Linear(self.embedding_dim, self.embedding_dim*2)
+        
+
+        self.encoder = nn.TransformerEncoder(
+            encoder_layer=nn.TransformerEncoderLayer(
+                d_model=self.embedding_dim, 
+                nhead=8,
+                dim_feedforward=self.embedding_dim*4,
+                activation="gelu",
+                batch_first=True,
+                norm_first=True), 
+            num_layers=4
+        )
+
+        enc_prefix = torch.zeros(1, 3, dtype=bool)
+        self.register_buffer("enc_prefix", enc_prefix)
+        self.decoder = nn.TransformerEncoder(
+            decoder_layer=nn.TransformerEncoderLayer(
+                d_model=self.embedding_dim,
+                nhead=8,
+                dim_feedforward=self.embedding_dim*4,
+                activation='gelu',
+                batch_first=True,
+                norm_first=True),# important for stability
+            num_layers=4
+        )
+
+        sz = self.max_len + 1 # start token
+        self.dec_length_token = nn.Parameter(0.02*torch.randn(1, self.embedding_dim))
+        self.dec_start_token = nn.Parameter(0.02*torch.randn(1, self.embedding_dim))
+        self.dec_mask_token = nn.Parameter(0.02*torch.randn(1, self.embedding_dim))
+        # self.tgt_time_emb = nn.Parameter(0.02*torch.randn(1, self.max_len, self.embedding_dim))
+        decoder_mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
+        decoder_mask = ~decoder_mask.bool() #decoder_mask.float().masked_fill(decoder_mask == 0, float('-inf')).masked_fill(decoder_mask == 1, float(0.0))
+        self.register_buffer("decoder_mask", decoder_mask)
+        self.dec_emb = nn.Parameter(0.02*torch.randn(1, self.max_len, self.embedding_dim))
+
+        self.dec_length_prediction = nn.Linear(self.embedding_dim, self.max_len)
+
+    def encode(self, x):
+        # src_key_mask = torch.stack([row != 0 for row in x], dim=0).bool()
+        src_key_mask = x==0
+        x = self.inp_emb(x) + self.time_emb
+        inp_emb_list = []
+        enc_inp_emb = torch.cat(
+            [self.z_emb.unsqueeze(0).expand(x.size(0),-1,-1)] + 
+             inp_emb_list + [x], 
+            dim=1
+        )
+
+        src_key_mask = torch.cat([self.enc_prefix[:, :1+len(inp_emb_list)].expand(x.size(0), -1), src_key_mask],dim=1)
+        x = self.encoder(enc_inp_emb, src_key_padding_mask=src_key_mask)
+        x = self.reparametrize(x[:, 0])
+        mu, log_var = x[:, :self.embedding_dim], x[:, self.embedding_dim:]
+        std = torch.exp(0.5 * log_var)
+        eps = torch.randn_like(std)
+        return mu + eps * std, mu, log_var
     
+    def decode(self, z, true_targets=None):
+        dec_emb_list = [self.dec_length_token.expand(z.size(0), -1,-1)]
+        dec_inp_emb = torch.cat(
+                    [z.unsqueeze(1)] + dec_emb_list +
+                    [self.dec_mask_token.expand(z.size(0), -1, -1)],
+                dim=1
+            )
+        dec_inp_emb = torch.cat(
+                    [z.unsqueeze(1)] + dec_emb_list +
+                    [self.dec_mask_token.expand(z.size(0), -1, -1)],
+                dim=1
+            )
+        if true_targets is not None:
+            # teacher forcing
+            src_key_mask = true_targets==0
+            src_key_mask = torch.cat([self.enc_prefix[:, :1+len(dec_emb_list)].expand(x.size(0), -1), src_key_mask],dim=1)
+            x = self.encoder(dec_inp_emb, src_key_padding_mask=src_key_mask)
+            x = self.lm_head(x)
+            x[:,:,0] = float('-inf')
+        else:
+            dec_tokens = [self.dec_start_token.expand(z.size(0), -1).unsqueeze(1)] 
+            dec_outputs = []
+            assert len(self.decoder_mask.shape) == 2
+            for i in range(self.max_len):
+                x = self.decoder(
+                    tgt=torch.cat(dec_tokens, dim=1), 
+                    memory=dec_inp_emb, 
+                    tgt_mask=self.decoder_mask[:i+1, :i+1])
+                dec_logits = self.lm_head(x[:,-1,:])
+                dec_logits[:,0] = float('-inf')
+                dec_outputs.append(dec_logits)
+                next_token = self.inp_emb(torch.argmax(dec_logits, dim=1)).unsqueeze(1) + self.time_emb[:, i, :]
+                dec_tokens.append(next_token)
+            x = torch.stack(dec_outputs, dim=1)
+        return F.log_softmax(x, dim=-1).view((-1, self.max_len * self.vocab_len))
+    
+    def forward(self, **input):
+        x = input['x']
+        z, mu, log_var = self.encode(x)
+        return self.decode(z, x), z, mu, log_var
 
 class cVAE(VAE):
     def __init__(self, *args, **kwargs):

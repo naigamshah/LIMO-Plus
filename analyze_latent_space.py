@@ -116,8 +116,13 @@ def main():
         models = []
         z_inp = torch.tensor(z).to(model.device)
         if model.use_z_surrogate:
-            for idx,prop_name in enumerate(weights):
-                surr_val += weights[prop_name] * model.z_surrogates[prop_name](z_inp)
+            #for idx,prop_name in enumerate(weights):
+            prop_name = "sa"
+            surr_val += weights[prop_name] * (model.z_surrogates[prop_name](z_inp)*SA_STD+SA_MEAN)
+            prop_name = "qed"
+            surr_val += weights[prop_name] * (model.z_surrogates[prop_name](z_inp)*QED_STD+QED_MEAN)
+            prop_name = "ba"
+            surr_val += weights[prop_name] * (model.z_surrogates[prop_name](z_inp)*BA_STD+BA_MEAN)
         else:
             probs = torch.exp(model.decode(z_inp))
             for idx,prop_name in enumerate(weights):
