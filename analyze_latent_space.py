@@ -90,7 +90,7 @@ def main():
     else:
         data_dict = {"z": [], "sa": [], "qed": [], "ba": []}
         with torch.no_grad():
-            for batch in iter(dm.val_dataloader()):
+            for batch in iter(dm.train_dataloader()):
                 #print(batch)
                 x, sa, qed, ba = batch["x"], batch["sa"], batch["qed"], batch["ba"]
                 z = model.encode(x.to(model.device))[0]
@@ -118,11 +118,12 @@ def main():
         if model.use_z_surrogate:
             #for idx,prop_name in enumerate(weights):
             prop_name = "sa"
-            surr_val += weights[prop_name] * (model.z_surrogates[prop_name](z_inp)*SA_STD+SA_MEAN)
+            surr_val += np.sign(weights[prop_name]) * model.z_surrogates[prop_name](z_inp)#*SA_STD+SA_MEAN)
             prop_name = "qed"
-            surr_val += weights[prop_name] * (model.z_surrogates[prop_name](z_inp)*QED_STD+QED_MEAN)
+            surr_val += np.sign(weights[prop_name]) * model.z_surrogates[prop_name](z_inp)#*QED_STD+QED_MEAN)
             prop_name = "ba"
-            surr_val += weights[prop_name] * (model.z_surrogates[prop_name](z_inp)*BA_STD+BA_MEAN)
+            surr_val += np.sign(weights[prop_name]) * model.z_surrogates[prop_name](z_inp)#*BA_STD+BA_MEAN)
+            real_val = (((sa-SA_MEAN)/SA_STD)*np.sign(weights["sa"])+((qed-QED_MEAN)/QED_STD)*np.sign(weights["qed"])+((ba-BA_MEAN)/BA_STD)*np.sign(weights["ba"]))
         else:
             probs = torch.exp(model.decode(z_inp))
             for idx,prop_name in enumerate(weights):
@@ -131,8 +132,8 @@ def main():
                 models[-1].load_state_dict(torch.load(f'{PROP_MODELS_SAVE}/{prop_name}_{limo.save_model_suffix}.pt', map_location="cpu"))
                 models[-1] = models[-1].to(device)
                 surr_val += weights[prop_name] * models[-1](probs)
+            real_val = (sa*weights["sa"]+qed*weights["qed"]+ba*weights["ba"])
 
-    real_val = (sa*weights["sa"]+qed*weights["qed"]+ba*weights["ba"])
     print()
     print("Total corr")
     #get_smoothnes_kNN_sparse(z[selected_pts], (sa*weights["sa"]+qed*weights["qed"]+ba*weights["ba"])[selected_pts])
