@@ -323,7 +323,7 @@ class CMLMC(VAE):
         self.register_buffer("decoder_mask", decoder_mask)
         self.dec_emb = nn.Parameter(0.02*torch.randn(1, self.max_len, self.embedding_dim))
 
-        self.dec_length_prediction = nn.Linear(self.embedding_dim, self.max_len)
+        self.dec_length_prediction = nn.Linear(self.embedding_dim, self.max_len+1)
 
     def encode(self, x):
         # src_key_mask = torch.stack([row != 0 for row in x], dim=0).bool()
