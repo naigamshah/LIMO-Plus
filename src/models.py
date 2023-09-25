@@ -6,8 +6,9 @@ import torch.nn.functional as F
 from src.constants import *
 import functools
 import math
+import numpy as np
 torch.autograd.set_detect_anomaly(True)
-
+PAD_INDEX = 0
 def _cosine_decay_warmup(iteration, warmup_iterations, total_iterations, min_mult):
     """
     Linear warmup from 0 --> 1.0, then decay using cosine decay to 0.1
@@ -122,7 +123,7 @@ class VAE(pl.LightningModule):
     
     def loss_function(self, pred, target, mu, log_var, batch_size, p):
         if self.autoreg:
-            nll = F.nll_loss(pred, target, ignore_index=0)
+            nll = F.nll_loss(pred, target, ignore_index=PAD_INDEX)
         else:
             nll = F.nll_loss(pred, target)
         kld = -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp()) / (batch_size * pred.shape[1])
@@ -218,7 +219,7 @@ class VAEFormer(VAE):
 
     def encode(self, x):
         # src_key_mask = torch.stack([row != 0 for row in x], dim=0).bool()
-        src_key_mask = x==0
+        src_key_mask = x==PAD_INDEX
         x = self.inp_emb(x) + self.time_emb
         inp_emb_list = []
         enc_inp_emb = torch.cat(
@@ -302,7 +303,7 @@ class CMLMC(VAE):
         enc_prefix = torch.zeros(1, 3, dtype=bool)
         self.register_buffer("enc_prefix", enc_prefix)
         self.decoder = nn.TransformerEncoder(
-            decoder_layer=nn.TransformerEncoderLayer(
+            encoder_layer=nn.TransformerEncoderLayer(
                 d_model=self.embedding_dim,
                 nhead=8,
                 dim_feedforward=self.embedding_dim*4,
@@ -315,7 +316,7 @@ class CMLMC(VAE):
         sz = self.max_len + 1 # start token
         self.dec_length_token = nn.Parameter(0.02*torch.randn(1, self.embedding_dim))
         self.dec_start_token = nn.Parameter(0.02*torch.randn(1, self.embedding_dim))
-        self.dec_mask_token = nn.Parameter(0.02*torch.randn(1, self.embedding_dim))
+        self.dec_mask_token = nn.Parameter(0.02*torch.randn(1, 1, self.embedding_dim))
         # self.tgt_time_emb = nn.Parameter(0.02*torch.randn(1, self.max_len, self.embedding_dim))
         decoder_mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
         decoder_mask = ~decoder_mask.bool() #decoder_mask.float().masked_fill(decoder_mask == 0, float('-inf')).masked_fill(decoder_mask == 1, float(0.0))
@@ -326,7 +327,7 @@ class CMLMC(VAE):
 
     def encode(self, x):
         # src_key_mask = torch.stack([row != 0 for row in x], dim=0).bool()
-        src_key_mask = x==0
+        src_key_mask = x==PAD_INDEX
         x = self.inp_emb(x) + self.time_emb
         inp_emb_list = []
         enc_inp_emb = torch.cat(
@@ -343,46 +344,154 @@ class CMLMC(VAE):
         eps = torch.randn_like(std)
         return mu + eps * std, mu, log_var
     
-    def decode(self, z, true_targets=None):
-        dec_emb_list = [self.dec_length_token.expand(z.size(0), -1,-1)]
-        dec_inp_emb = torch.cat(
-                    [z.unsqueeze(1)] + dec_emb_list +
-                    [self.dec_mask_token.expand(z.size(0), -1, -1)],
-                dim=1
-            )
-        dec_inp_emb = torch.cat(
-                    [z.unsqueeze(1)] + dec_emb_list +
-                    [self.dec_mask_token.expand(z.size(0), -1, -1)],
-                dim=1
-            )
+    def length_loss(self, true, prediction):
+        return F.cross_entropy(prediction, true)
+    
+    def decode(self, z, true_targets:torch.Tensor=None, scaffold=None):
+        dec_emb_list = []
         if true_targets is not None:
-            # teacher forcing
-            src_key_mask = true_targets==0
-            src_key_mask = torch.cat([self.enc_prefix[:, :1+len(dec_emb_list)].expand(x.size(0), -1), src_key_mask],dim=1)
+            # Generating prediction from all mask
+            src_key_mask = true_targets==PAD_INDEX
+            src_key_mask = torch.cat([self.enc_prefix[:, :1+len(dec_emb_list)].expand(z.size(0), -1), src_key_mask],dim=1)
+            true_lengths = (true_targets!=PAD_INDEX).sum(dim=1)
+            l_pred = self.dec_length_prediction(z)
+            llength = F.nll_loss(l_pred, true_lengths)
+
+            dec_allmask_inp_emb = torch.cat(
+                        [z.unsqueeze(1)] + dec_emb_list +
+                        [self.dec_mask_token.expand(z.size(0), self.max_len, -1)],
+                    dim=1
+                )
+            x = self.encoder(dec_allmask_inp_emb, src_key_padding_mask=src_key_mask)
+            allmask_out = self.lm_head(x)
+            allmask_out[:,:,0] = float('-inf')
+            allmask_out = allmask_out[:,1:]
+
+
+            # MASKED LOSS: fixing masked predictions
+            mask_replace = torch.full_like(true_targets, False, dtype=torch.bool)
+            for i in range(true_lengths.size(0)):
+                perm = torch.randperm(true_lengths[i])
+                k = np.random.randint(0, true_lengths[i].item())
+                idx = perm[:k]
+                mask_replace[i, idx] = True
+
+            mask_replace.to(true_targets.device)
+
+            x = self.inp_emb(true_targets)
+            masked_inp = x.clone()
+            masked_inp[mask_replace] = self.dec_mask_token
+            masked_inp += self.time_emb
+            
+
+            dec_inp_emb = torch.cat(
+                        [z.unsqueeze(1)] + dec_emb_list +
+                        [masked_inp],
+                    dim=1
+                )
             x = self.encoder(dec_inp_emb, src_key_padding_mask=src_key_mask)
-            x = self.lm_head(x)
-            x[:,:,0] = float('-inf')
+            inpmask_out = self.lm_head(x)
+            inpmask_out[:,:,0] = float('-inf')
+            inpmask_out = inpmask_out[:,1:]
+
+            lmask = F.nll_loss(inpmask_out[mask_replace==True], true_targets[mask_replace==True], ignore_index=PAD_INDEX)
+
+            # CORRECTION LOSS: fixing bad previous predictions
+            switch_token_vals = torch.argmax(allmask_out, dim=-1)
+            switch_tokens = (torch.rand_like(true_targets, dtype=torch.float32) < 0.3) & (~mask_replace) & (~(true_targets==PAD_INDEX))
+            inpmask_token_vals = torch.argmax(inpmask_out, dim=-1)
+            inpmask_token_vals[switch_tokens] =  switch_token_vals[switch_tokens]
+            
+            final_inp = self.inp_emb(inpmask_token_vals) + self.time_emb
+            dec_finalinp_emb = torch.cat(
+                        [z.unsqueeze(1)] + dec_emb_list +
+                        [final_inp],
+                    dim=1
+                )
+            x = self.encoder(dec_finalinp_emb, src_key_padding_mask=src_key_mask)
+            final_out = self.lm_head(x)
+            final_out[:,:,0] = float('-inf')
+            final_out = final_out[:,1:]
+
+            lcorr = F.nll_loss(final_out[switch_tokens], true_targets[switch_tokens], ignore_index=PAD_INDEX)
+
+            return lcorr + lmask + llength
+
         else:
-            dec_tokens = [self.dec_start_token.expand(z.size(0), -1).unsqueeze(1)] 
-            dec_outputs = []
-            assert len(self.decoder_mask.shape) == 2
-            for i in range(self.max_len):
-                x = self.decoder(
-                    tgt=torch.cat(dec_tokens, dim=1), 
-                    memory=dec_inp_emb, 
-                    tgt_mask=self.decoder_mask[:i+1, :i+1])
-                dec_logits = self.lm_head(x[:,-1,:])
-                dec_logits[:,0] = float('-inf')
-                dec_outputs.append(dec_logits)
-                next_token = self.inp_emb(torch.argmax(dec_logits, dim=1)).unsqueeze(1) + self.time_emb[:, i, :]
-                dec_tokens.append(next_token)
-            x = torch.stack(dec_outputs, dim=1)
-        return F.log_softmax(x, dim=-1).view((-1, self.max_len * self.vocab_len))
+            #src_key_mask = true_targets==PAD_INDEX
+            #src_key_mask = torch.cat([self.enc_prefix[:, :1+len(dec_emb_list)].expand(x.size(0), -1), src_key_mask],dim=1)
+            #true_lengths = (true_targets!=PAD_INDEX).sum(dim=1)
+            l_pred_logits = self.dec_length_prediction(z)
+            l_pred = torch.argmax(l_pred_logits, dim=-1)
+            src_key_mask = torch.zeros((z.size(0), self.max_len), dtype=torch.bool)
+            masked_inp = self.dec_mask_token.expand(z.size(0), self.max_len, -1)
+            for i in range(z.size(0)):
+                masked_inp[i,l_pred[i]:] = self.inp_emb(PAD_INDEX)
+                src_key_mask[i,l_pred[i]:] = True
+            
+            if scaffold is not None:
+                scaffold_embed = self.inp_emb(scaffold)
+                masked_inp[scaffold!=PAD_INDEX] = scaffold_embed[scaffold!=PAD_INDEX]
+            
+            masked_inp += self.time_emb
+
+            src_key_mask = torch.cat([self.enc_prefix[:, :1+len(dec_emb_list)].expand(x.size(0), -1), src_key_mask],dim=1)
+            dec_onestep_inp_emb = torch.cat(
+                        [z.unsqueeze(1)] + dec_emb_list +
+                        [masked_inp],
+                    dim=1
+                )
+            x = self.encoder(dec_onestep_inp_emb, src_key_padding_mask=src_key_mask)
+            onestep_out = self.lm_head(x)
+            return None
+            #return F.log_softmax(x, dim=-1).view((-1, self.max_len * self.vocab_len))
     
     def forward(self, **input):
         x = input['x']
         z, mu, log_var = self.encode(x)
         return self.decode(z, x), z, mu, log_var
+    
+    def loss_function(self, mu, log_var, batch_size, p):
+        kld = -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp()) / (batch_size * self.vocab_len)
+        return kld
+    
+    def training_step(self, train_batch, batch_idx):
+        loss, z, mu, log_var = self(**train_batch)
+        p = 0.1 * (min((self.global_step % 1000) / 1000, 0.5)*2) # 0.01 #min(self.current_epoch/10, 0.1)  #0.1
+        kld = self.loss_function(mu, log_var, len(train_batch["x"]), p)
+        loss += kld
+        if self.use_z_surrogate:
+            if self.independent_surrogate:
+                surr_dict = self.surr_forward(z.clone().detach())
+            else:
+                surr_dict = self.surr_forward(z)
+            surr_losses = self.surr_loss_function(surr_dict, train_batch)
+            loss += surr_losses
+            self.log('train_surr_loss', surr_losses)
+        self.log('train_loss', loss)
+        #self.log('train_nll', nll)
+        self.log('train_kld', kld)
+        return loss
+        
+    def validation_step(self, val_batch, batch_idx):
+        loss, z, mu, log_var = self(**val_batch)
+        p = 0.1 * (min((self.global_step % 1000) / 1000, 0.5)*2) # 0.01 #min(self.current_epoch/10, 0.1)  #0.1
+        kld = self.loss_function( mu, log_var, len(val_batch["x"]), p)
+        loss += kld
+        if self.use_z_surrogate:    
+            if self.independent_surrogate:
+                surr_dict = self.surr_forward(z.clone().detach())
+            else:
+                surr_dict = self.surr_forward(z)
+            surr_losses = self.surr_loss_function(surr_dict, val_batch)
+            loss += surr_losses
+            self.log('train_surr_loss', surr_losses)
+        self.log('val_loss', loss)
+        #self.log('val_nll', nll)
+        self.log('val_kld', kld)
+        self.log('val_mu', torch.mean(mu))
+        self.log('val_logvar', torch.mean(log_var))
+        return loss
 
 class cVAE(VAE):
     def __init__(self, *args, **kwargs):

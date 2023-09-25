@@ -63,6 +63,15 @@ class LIMO:
             prop_dim = latent_dim
             autoreg = True
             use_z_surrogate = True if "zsurr" in self.exp_name else False
+        elif self.model_type == "cmlmc":
+            modelClass = CMLMC
+            load_prop_list = ["ba", "sa", "qed"]
+            latent_dim=128
+            embedding_dim=128
+            batch_size = 256
+            prop_dim = latent_dim
+            autoreg = True
+            use_z_surrogate = True if "zsurr" in self.exp_name else False
         else: 
             modelClass = VAE
             load_prop_list = ["ba", "sa", "qed"]
