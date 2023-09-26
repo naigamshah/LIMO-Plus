@@ -354,21 +354,22 @@ class CMLMC(VAE):
             src_key_mask = true_targets==PAD_INDEX
             src_key_mask = torch.cat([self.enc_prefix[:, :1+len(dec_emb_list)].expand(z.size(0), -1), src_key_mask],dim=1)
             true_lengths = (true_targets!=PAD_INDEX).sum(dim=1)
-            l_pred = self.dec_length_prediction(z)
+            l_pred = F.log_softmax(self.dec_length_prediction(z), dim=-1)
             llength = F.nll_loss(l_pred, true_lengths)
-
+            
+            allmask_inp = self.dec_mask_token.expand(z.size(0), self.max_len, -1) + self.time_emb
             dec_allmask_inp_emb = torch.cat(
                         [z.unsqueeze(1)] + dec_emb_list +
-                        [self.dec_mask_token.expand(z.size(0), self.max_len, -1)],
+                        [allmask_inp],
                     dim=1
                 )
             x = self.encoder(dec_allmask_inp_emb, src_key_padding_mask=src_key_mask)
             allmask_out = self.lm_head(x)
             allmask_out[:,:,0] = float('-inf')
-            allmask_out = allmask_out[:,1:]
+            allmask_out = F.log_softmax(allmask_out[:,1:], dim=-1)
 
 
-            # MASKED LOSS: fixing masked predictions
+            # MASKED LOSS: randomly masking predictions
             mask_replace = torch.full_like(true_targets, False, dtype=torch.bool)
             for i in range(true_lengths.size(0)):
                 perm = torch.randperm(true_lengths[i])
@@ -379,7 +380,7 @@ class CMLMC(VAE):
             mask_replace.to(true_targets.device)
 
             x = self.inp_emb(true_targets)
-            masked_inp = x.clone()
+            masked_inp = x
             masked_inp[mask_replace] = self.dec_mask_token
             masked_inp += self.time_emb
             
@@ -392,7 +393,7 @@ class CMLMC(VAE):
             x = self.encoder(dec_inp_emb, src_key_padding_mask=src_key_mask)
             inpmask_out = self.lm_head(x)
             inpmask_out[:,:,0] = float('-inf')
-            inpmask_out = inpmask_out[:,1:]
+            inpmask_out = F.log_softmax(inpmask_out[:,1:], dim=-1)
 
             lmask = F.nll_loss(inpmask_out[mask_replace==True], true_targets[mask_replace==True], ignore_index=PAD_INDEX)
 
@@ -411,7 +412,7 @@ class CMLMC(VAE):
             x = self.encoder(dec_finalinp_emb, src_key_padding_mask=src_key_mask)
             final_out = self.lm_head(x)
             final_out[:,:,0] = float('-inf')
-            final_out = final_out[:,1:]
+            final_out = F.log_softmax(final_out[:,1:], dim=-1)
 
             lcorr = F.nll_loss(final_out[switch_tokens], true_targets[switch_tokens], ignore_index=PAD_INDEX)
 
@@ -424,26 +425,52 @@ class CMLMC(VAE):
             l_pred_logits = self.dec_length_prediction(z)
             l_pred = torch.argmax(l_pred_logits, dim=-1)
             src_key_mask = torch.zeros((z.size(0), self.max_len), dtype=torch.bool)
+
             masked_inp = self.dec_mask_token.expand(z.size(0), self.max_len, -1)
             for i in range(z.size(0)):
                 masked_inp[i,l_pred[i]:] = self.inp_emb(PAD_INDEX)
                 src_key_mask[i,l_pred[i]:] = True
+            src_key_mask = torch.cat([self.enc_prefix[:, :1+len(dec_emb_list)].expand(x.size(0), -1), src_key_mask],dim=1)
             
             if scaffold is not None:
                 scaffold_embed = self.inp_emb(scaffold)
-                masked_inp[scaffold!=PAD_INDEX] = scaffold_embed[scaffold!=PAD_INDEX]
-            
-            masked_inp += self.time_emb
 
-            src_key_mask = torch.cat([self.enc_prefix[:, :1+len(dec_emb_list)].expand(x.size(0), -1), src_key_mask],dim=1)
-            dec_onestep_inp_emb = torch.cat(
-                        [z.unsqueeze(1)] + dec_emb_list +
-                        [masked_inp],
-                    dim=1
-                )
-            x = self.encoder(dec_onestep_inp_emb, src_key_padding_mask=src_key_mask)
-            onestep_out = self.lm_head(x)
-            return None
+            def enforce_scaffold_embed(sc, minp):
+                if sc is not None:
+                    minp[sc!=PAD_INDEX] = scaffold_embed[sc!=PAD_INDEX]
+            def enforce_scaffold_token(sc, mtok):
+                if sc is not None:
+                    mtok[sc!=PAD_INDEX] = scaffold[sc!=PAD_INDEX]
+            
+            enforce_scaffold_embed(scaffold, masked_inp)
+            masked_inp += self.time_emb
+            
+            def decode_one_step(minp):
+                dec_fullmask_inp_emb = torch.cat(
+                            [z.unsqueeze(1)] + dec_emb_list +
+                            [minp],
+                        dim=1
+                    )
+                x = self.encoder(dec_fullmask_inp_emb, src_key_padding_mask=src_key_mask)
+                fullmask_out = self.lm_head(x)
+                fullmask_out[:,:,0] = float('-inf')
+                fullmask_out = fullmask_out[:,1:]
+                fullmask_tokens = torch.argmax(fullmask_out, dim=-1)
+                return fullmask_tokens
+            
+            fullmask_tokens = decode_one_step(masked_inp)
+            enforce_scaffold_token(scaffold, fullmask_tokens)
+
+            for _ in range(10):
+                masked_inp = self.inp_emb(fullmask_tokens)
+                for i in range(z.size(0)):
+                    masked_inp[i,l_pred[i]:] = self.inp_emb(PAD_INDEX)
+
+                masked_inp += self.time_emb
+                fullmask_tokens = decode_one_step(masked_inp)
+                enforce_scaffold_token(scaffold, fullmask_tokens)
+
+            return fullmask_tokens
             #return F.log_softmax(x, dim=-1).view((-1, self.max_len * self.vocab_len))
     
     def forward(self, **input):
