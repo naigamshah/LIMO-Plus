@@ -428,7 +428,7 @@ class CMLMC(VAE):
 
             masked_inp = self.dec_mask_token.expand(z.size(0), self.max_len, -1)
             for i in range(z.size(0)):
-                masked_inp[i,l_pred[i]:] = self.inp_emb(PAD_INDEX)
+                masked_inp[i,l_pred[i]:] = self.inp_emb(torch.tensor(PAD_INDEX))
                 src_key_mask[i,l_pred[i]:] = True
             src_key_mask = torch.cat([self.enc_prefix[:, :1+len(dec_emb_list)].expand(x.size(0), -1), src_key_mask],dim=1)
             
@@ -464,13 +464,14 @@ class CMLMC(VAE):
             for _ in range(10):
                 masked_inp = self.inp_emb(fullmask_tokens)
                 for i in range(z.size(0)):
-                    masked_inp[i,l_pred[i]:] = self.inp_emb(PAD_INDEX)
+                    masked_inp[i,l_pred[i]:] = self.inp_emb(torch.tensor(PAD_INDEX))
 
                 masked_inp += self.time_emb
                 fullmask_tokens = decode_one_step(masked_inp)
                 enforce_scaffold_token(scaffold, fullmask_tokens)
 
-            return fullmask_tokens
+            #return fullmask_tokens
+            return F.log_softmax(F.one_hot(fullmask_tokens, num_classes=self.vocab_len), dim=-1)
             #return F.log_softmax(x, dim=-1).view((-1, self.max_len * self.vocab_len))
     
     def forward(self, **input):
