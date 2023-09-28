@@ -430,7 +430,7 @@ class CMLMC(VAE):
             for i in range(z.size(0)):
                 masked_inp[i,l_pred[i]:] = self.inp_emb(torch.tensor([PAD_INDEX]*(self.max_len - l_pred[i])).to(self.device))
                 src_key_mask[i,l_pred[i]:] = True
-            src_key_mask = torch.cat([self.enc_prefix[:, :1+len(dec_emb_list)].expand(x.size(0), -1), src_key_mask],dim=1)
+            src_key_mask = torch.cat([self.enc_prefix[:, :1+len(dec_emb_list)].expand(z.size(0), -1), src_key_mask],dim=1)
             
             if scaffold is not None:
                 scaffold_embed = self.inp_emb(scaffold)
