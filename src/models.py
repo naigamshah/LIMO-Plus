@@ -363,7 +363,7 @@ class CMLMC(VAE):
                         [allmask_inp],
                     dim=1
                 )
-            x = self.encoder(dec_allmask_inp_emb, src_key_padding_mask=src_key_mask)
+            x = self.decoder(dec_allmask_inp_emb, src_key_padding_mask=src_key_mask)
             allmask_out = self.lm_head(x)
             allmask_out[:,:,0] = float('-inf')
             allmask_out = F.log_softmax(allmask_out[:,1:], dim=-1)
@@ -390,7 +390,7 @@ class CMLMC(VAE):
                         [masked_inp],
                     dim=1
                 )
-            x = self.encoder(dec_inp_emb, src_key_padding_mask=src_key_mask)
+            x = self.decoder(dec_inp_emb, src_key_padding_mask=src_key_mask)
             inpmask_out = self.lm_head(x)
             inpmask_out[:,:,0] = float('-inf')
             inpmask_out = F.log_softmax(inpmask_out[:,1:], dim=-1)
@@ -409,7 +409,7 @@ class CMLMC(VAE):
                         [final_inp],
                     dim=1
                 )
-            x = self.encoder(dec_finalinp_emb, src_key_padding_mask=src_key_mask)
+            x = self.decoder(dec_finalinp_emb, src_key_padding_mask=src_key_mask)
             final_out = self.lm_head(x)
             final_out[:,:,0] = float('-inf')
             final_out = F.log_softmax(final_out[:,1:], dim=-1)
@@ -451,7 +451,7 @@ class CMLMC(VAE):
                             [minp],
                         dim=1
                     )
-                x = self.encoder(dec_fullmask_inp_emb, src_key_padding_mask=src_key_mask)
+                x = self.decoder(dec_fullmask_inp_emb, src_key_padding_mask=src_key_mask)
                 fullmask_out = self.lm_head(x)
                 fullmask_out[:,:,0] = float('-inf')
                 fullmask_out = fullmask_out[:,1:]
