@@ -471,7 +471,7 @@ class CMLMC(VAE):
                 enforce_scaffold_token(scaffold, fullmask_tokens)
 
             #return fullmask_tokens
-            return F.log_softmax(F.one_hot(fullmask_tokens, num_classes=self.vocab_len), dim=-1)
+            return F.log_softmax(F.one_hot(fullmask_tokens, num_classes=self.vocab_len).float(), dim=-1)
             #return F.log_softmax(x, dim=-1).view((-1, self.max_len * self.vocab_len))
     
     def forward(self, **input):
