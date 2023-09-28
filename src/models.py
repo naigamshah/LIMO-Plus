@@ -426,7 +426,7 @@ class CMLMC(VAE):
             l_pred = torch.argmax(l_pred_logits, dim=-1)
             src_key_mask = torch.zeros((z.size(0), self.max_len), dtype=torch.bool)
 
-            masked_inp = self.dec_mask_token.expand(z.size(0), self.max_len, -1)
+            masked_inp = self.dec_mask_token.expand(z.size(0), self.max_len, -1).clone()
             for i in range(z.size(0)):
                 masked_inp[i,l_pred[i]:] = self.inp_emb(torch.tensor([PAD_INDEX]*(self.max_len - l_pred[i])).to(self.device))
                 src_key_mask[i,l_pred[i]:] = True
