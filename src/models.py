@@ -424,7 +424,7 @@ class CMLMC(VAE):
             #true_lengths = (true_targets!=PAD_INDEX).sum(dim=1)
             l_pred_logits = self.dec_length_prediction(z)
             l_pred = torch.argmax(l_pred_logits, dim=-1)
-            src_key_mask = torch.zeros((z.size(0), self.max_len), dtype=torch.bool)
+            src_key_mask = torch.zeros((z.size(0), self.max_len), dtype=torch.bool, device=self.device)
 
             masked_inp = self.dec_mask_token.expand(z.size(0), self.max_len, -1).clone()
             for i in range(z.size(0)):
