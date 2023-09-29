@@ -53,14 +53,17 @@ def main():
     # generate molecules
     if start_stage <= 2 and end_stage > 2:
         print(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{exp_suffix}:{model_type} Generating molecules with opt method {opt_method}", flush=True, file=open(log_file, "a+"))
-        if (model_type == "vae") or (model_type == "vae_t"):
-            opt_prop = "moba"
-            sa_cut_off = 11
-            qed_cut_off = -1
-        else:
-            opt_prop = "ba"
-            sa_cut_off = 11
-            qed_cut_off = -1
+        # if (model_type == "vae") or (model_type == "vae_t"):
+        #     opt_prop = "moba"
+        #     sa_cut_off = 11
+        #     qed_cut_off = -1
+        # else:
+        #     opt_prop = "ba"
+        #     sa_cut_off = 11
+        #     qed_cut_off = -1
+        opt_prop = "moba"
+        sa_cut_off = 11
+        qed_cut_off = -1
         limo.generate_molecules(opt_prop=opt_prop, sa_cutoff=sa_cut_off, qed_cutoff=qed_cut_off, opt_method=opt_method)
 
 
