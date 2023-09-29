@@ -105,6 +105,8 @@ def get_corr(embeddings, energies_r, energies_s, K=20):
     p_corr = []
     s_corr = []
     k_corr = []
+    lingress_r = []
+    lingress_s = []
     for i in tqdm(range(embeddings.shape[0])):
         #dists = np.linalg.norm(embeddings[i][None, :]-embeddings, axis=-1) 
         #indices = np.argpartition(dists, 4)[:4]
@@ -114,11 +116,14 @@ def get_corr(embeddings, energies_r, energies_s, K=20):
         for j in indices[i]:
             r_vals.append(energies_r[j, 0])
             s_vals.append(energies_s[j, 0])
+        lingress_r.append(stats.linregress(r_vals, s_vals))
+        lingress_s.append(stats.linregress(s_vals, r_vals))
+        #print(r_vals, s_vals)
         p_corr.append(get_pearson_r2(r_vals, s_vals))
         s_corr.append(get_spearman_r2(r_vals, s_vals))
         k_corr.append(get_kendall_r2(r_vals, s_vals))
     
-    return {"pearson": p_corr, "spearman": s_corr, "kendall": k_corr}
+    return {"pearson": p_corr, "spearman": s_corr, "kendall": k_corr, "lgr": lingress_r, "lgs": lingress_s}
 
 def get_dirichlet_energy(embeddings, energies, K=5):
     nn = NearestNeighbors(n_neighbors=K, algorithm="kd_tree").fit(embeddings)
