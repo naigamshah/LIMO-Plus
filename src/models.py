@@ -9,6 +9,7 @@ import math
 import numpy as np
 torch.autograd.set_detect_anomaly(True)
 PAD_INDEX = 0
+NOP_INDEX = 1
 def _cosine_decay_warmup(iteration, warmup_iterations, total_iterations, min_mult):
     """
     Linear warmup from 0 --> 1.0, then decay using cosine decay to 0.1
@@ -429,6 +430,7 @@ class CMLMC(VAE):
             masked_inp = self.dec_mask_token.expand(z.size(0), self.max_len, -1).clone()
             for i in range(z.size(0)):
                 masked_inp[i,l_pred[i]:] = self.inp_emb(torch.tensor([PAD_INDEX]*(self.max_len - l_pred[i]), dtype=torch.long).to(self.device))
+                masked_inp[i,l_pred[i]-1] = self.inp_emb(torch.tensor([NOP_INDEX], dtype=torch.long).to(self.device))
                 src_key_mask[i,l_pred[i]:] = True
             src_key_mask = torch.cat([self.enc_prefix[:, :1+len(dec_emb_list)].expand(z.size(0), -1), src_key_mask],dim=1)
             
@@ -454,24 +456,34 @@ class CMLMC(VAE):
                 x = self.decoder(dec_fullmask_inp_emb, src_key_padding_mask=src_key_mask)
                 fullmask_out = self.lm_head(x)
                 fullmask_out[:,:,0] = float('-inf')
+                fullmask_out[:,:,1] = float('-inf')
+
                 fullmask_out = fullmask_out[:,1:]
                 fullmask_tokens = torch.argmax(fullmask_out, dim=-1)
                 return fullmask_tokens
             
+            #all_decoded = []
             fullmask_tokens = decode_one_step(masked_inp)
             enforce_scaffold_token(scaffold, fullmask_tokens)
+            for i in range(z.size(0)):
+                fullmask_tokens[i, l_pred[i]-1] = torch.tensor([NOP_INDEX], dtype=torch.long).to(self.device)
+            #all_decoded.append(fullmask_tokens)
 
             for _ in range(10):
                 masked_inp = self.inp_emb(fullmask_tokens)
                 for i in range(z.size(0)):
                     masked_inp[i,l_pred[i]:] = self.inp_emb(torch.tensor([PAD_INDEX]*(self.max_len - l_pred[i]), dtype=torch.long).to(self.device))
+                    #masked_inp[i,l_pred[i]-1] = self.inp_emb(torch.tensor([NOP_INDEX], dtype=torch.long).to(self.device))
 
                 masked_inp += self.time_emb
                 fullmask_tokens = decode_one_step(masked_inp)
                 enforce_scaffold_token(scaffold, fullmask_tokens)
+                for i in range(z.size(0)):
+                    fullmask_tokens[i, l_pred[i]-1] = torch.tensor([NOP_INDEX], dtype=torch.long).to(self.device)
+                #all_decoded.append(fullmask_tokens)
 
             #return fullmask_tokens
-            return F.log_softmax(F.one_hot(fullmask_tokens, num_classes=self.vocab_len).float(), dim=-1)
+            return F.log_softmax(F.one_hot(fullmask_tokens, num_classes=self.vocab_len).float(), dim=-1)#, all_decoded
             #return F.log_softmax(x, dim=-1).view((-1, self.max_len * self.vocab_len))
     
     def forward(self, **input):
@@ -487,7 +499,7 @@ class CMLMC(VAE):
         loss, z, mu, log_var = self(**train_batch)
         p = 0.1 * (min((self.global_step % 1000) / 1000, 0.5)*2) # 0.01 #min(self.current_epoch/10, 0.1)  #0.1
         kld = self.loss_function(mu, log_var, len(train_batch["x"]), p)
-        loss += kld
+        loss += p * kld
         if self.use_z_surrogate:
             if self.independent_surrogate:
                 surr_dict = self.surr_forward(z.clone().detach())
