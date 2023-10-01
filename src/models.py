@@ -424,6 +424,8 @@ class CMLMC(VAE):
             #src_key_mask = torch.cat([self.enc_prefix[:, :1+len(dec_emb_list)].expand(x.size(0), -1), src_key_mask],dim=1)
             #true_lengths = (true_targets!=PAD_INDEX).sum(dim=1)
             l_pred_logits = self.dec_length_prediction(z)
+            # minimum length 10
+            l_pred_logits[:, :10] = float("-inf")
             l_pred = torch.argmax(l_pred_logits, dim=-1)
             src_key_mask = torch.zeros((z.size(0), self.max_len), dtype=torch.bool, device=self.device)
 
