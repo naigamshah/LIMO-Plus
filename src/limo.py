@@ -263,7 +263,7 @@ class LIMO:
                 else:
                     real_val = (sa*weights["sa"]+qed*weights["qed"]+ba*weights["ba"])
 
-                z = torch.tensor(np.argpartition(real_val, num_mols)[:num_mols], device=device, requires_grad=True)
+                z = torch.tensor(z[np.argpartition(real_val, num_mols)[:num_mols]], device=device, requires_grad=True)
             else:
                 z = torch.randn((num_mols, gen_model.latent_dim), device=device, requires_grad=True)
             
@@ -296,7 +296,7 @@ class LIMO:
             allz = get_zstart(weights=weights, num_mols=num_mols)
             for i in range(num_chunks):
                 #z = torch.randn((len(idx[i*MAX_MOLS_GRAD_CHUNK:(i+1)*MAX_MOLS_GRAD_CHUNK]), gen_model.latent_dim), device=device, requires_grad=True)
-                z = allz[idx[i*MAX_MOLS_GRAD_CHUNK:(i+1)*MAX_MOLS_GRAD_CHUNK]]
+                z = allz[idx[i*MAX_MOLS_GRAD_CHUNK:(i+1)*MAX_MOLS_GRAD_CHUNK]].clone().requires_grad_(True)
                 # with torch.no_grad():
                 #     z_, _, _ = gen_model.encode(next(train_dm_iter)["x"].to(device))
                 # z = z_.clone().detach().requires_grad_(True)
