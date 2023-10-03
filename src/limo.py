@@ -223,7 +223,7 @@ class LIMO:
             device = torch.device("cpu")
             num_devices = 1
 
-        if opt_method != "default":
+        if "default" not in opt_method:
             from src.pcgrad import PCGrad
             from src.optimizers.opt_methods import WeightMethods
 
@@ -231,6 +231,43 @@ class LIMO:
         dm, gen_model = dm_model["dm"], dm_model["gen_model"]
         gen_model.to(device)
         gen_model.eval()
+
+        def get_zstart(weights, num_mols):
+            if "startbest" in opt_method:
+                if os.path.exists(f"temp/latent_space_{self.save_model_suffix}.pkl"):
+                    data_dict = pickle.load(open(f"temp/latent_space_{self.save_model_suffix}.pkl", "rb"))
+                else:
+                    data_dict = {"z": [], "sa": [], "qed": [], "ba": []}
+                    with torch.no_grad():
+                        for batch in iter(dm.train_dataloader()):
+                            #print(batch)
+                            x, sa, qed, ba = batch["x"], batch["sa"], batch["qed"], batch["ba"]
+                            z = gen_model.encode(x.to(gen_model.device))[0]
+                            for i in range(z.shape[0]):
+                                data_dict["z"].append(z[i].cpu().detach().float().numpy()) 
+                                data_dict["sa"].append(sa[i].cpu().detach().float().numpy()*SA_STD+SA_MEAN)
+                                data_dict["qed"].append(qed[i].cpu().detach().float().numpy()*QED_STD+QED_MEAN)
+                                data_dict["ba"].append(ba[i].cpu().detach().float().numpy()*BA_STD+BA_MEAN)
+                    # if len(data_dict["z"]) > 1000:
+                    #     break
+                    with open(f"temp/latent_space_{self.save_model_suffix}.pkl", "wb") as f:
+                        pickle.dump(data_dict, f)
+
+                z = np.array(data_dict["z"])
+                sa = np.array(data_dict["sa"])
+                qed = np.array(data_dict["qed"])
+                ba = np.array(data_dict["ba"])
+
+                if gen_model.use_z_surrogate:
+                    real_val = (((sa-SA_MEAN)/SA_STD)*np.sign(weights["sa"])+((qed-QED_MEAN)/QED_STD)*np.sign(weights["qed"])+((ba-BA_MEAN)/BA_STD)*np.sign(weights["ba"]))
+                else:
+                    real_val = (sa*weights["sa"]+qed*weights["qed"]+ba*weights["ba"])
+
+                z = torch.tensor(np.argpartition(real_val, num_mols)[:num_mols], device=device, requires_grad=True)
+            else:
+                z = torch.randn((num_mols, gen_model.latent_dim), device=device, requires_grad=True)
+            
+            return z
 
         def get_optimized_z(weights, num_mols, num_steps=10):
             models = []
@@ -256,12 +293,14 @@ class LIMO:
                 num_chunks += 1
             idx = range(0, num_mols)
             zs = []
+            allz = get_zstart(weights=weights, num_mols=num_mols)
             for i in range(num_chunks):
-                z = torch.randn((len(idx[i*MAX_MOLS_GRAD_CHUNK:(i+1)*MAX_MOLS_GRAD_CHUNK]), gen_model.latent_dim), device=device, requires_grad=True)
+                #z = torch.randn((len(idx[i*MAX_MOLS_GRAD_CHUNK:(i+1)*MAX_MOLS_GRAD_CHUNK]), gen_model.latent_dim), device=device, requires_grad=True)
+                z = allz[idx[i*MAX_MOLS_GRAD_CHUNK:(i+1)*MAX_MOLS_GRAD_CHUNK]]
                 # with torch.no_grad():
                 #     z_, _, _ = gen_model.encode(next(train_dm_iter)["x"].to(device))
                 # z = z_.clone().detach().requires_grad_(True)
-                if opt_method != "default":
+                if "default" not in opt_method:
                     weight_method = WeightMethods(
                         opt_method, n_tasks=3, device=device
                     )
@@ -356,7 +395,7 @@ class LIMO:
         if opt_prop in ('sa', 'ba', 'moba'):
             if not os.path.exists(f"gen_mols"):
                 os.makedirs(f"gen_mols")
-            if opt_method != "default":
+            if "default" not in opt_method:
                 pickle.dump([(prop[i], smiles[i]) for i in range(len(smiles))], 
                     open(f"gen_mols/{opt_prop}_{opt_method}_{self.save_model_suffix}.pkl", "wb"))
             else:

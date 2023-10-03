@@ -461,11 +461,11 @@ class CMLMC(VAE):
                 fullmask_out[:,:,1] = float('-inf')
 
                 fullmask_out = fullmask_out[:,1:]
-                fullmask_tokens = torch.argmax(fullmask_out, dim=-1)
-                return fullmask_tokens
+                fullmask_scores, fullmask_tokens = torch.max(fullmask_out, dim=-1)
+                return fullmask_scores, fullmask_tokens
             
             #all_decoded = []
-            fullmask_tokens = decode_one_step(masked_inp)
+            fullmask_scores, fullmask_tokens = decode_one_step(masked_inp)
             enforce_scaffold_token(scaffold, fullmask_tokens)
             for i in range(z.size(0)):
                 fullmask_tokens[i, l_pred[i]-1] = torch.tensor([NOP_INDEX], dtype=torch.long).to(self.device)
@@ -476,9 +476,11 @@ class CMLMC(VAE):
                 for i in range(z.size(0)):
                     masked_inp[i,l_pred[i]:] = self.inp_emb(torch.tensor([PAD_INDEX]*(self.max_len - l_pred[i]), dtype=torch.long).to(self.device))
                     #masked_inp[i,l_pred[i]-1] = self.inp_emb(torch.tensor([NOP_INDEX], dtype=torch.long).to(self.device))
-
+                    split_val = torch.quantile(fullmask_scores[i,:l_pred[i]], 0.3)
+                    (masked_inp[i,:l_pred[i]])[fullmask_scores[i,:l_pred[i]] < split_val] = self.dec_mask_token
+                    
                 masked_inp += self.time_emb
-                fullmask_tokens = decode_one_step(masked_inp)
+                fullmask_scores, fullmask_tokens = decode_one_step(masked_inp)
                 enforce_scaffold_token(scaffold, fullmask_tokens)
                 for i in range(z.size(0)):
                     fullmask_tokens[i, l_pred[i]-1] = torch.tensor([NOP_INDEX], dtype=torch.long).to(self.device)
