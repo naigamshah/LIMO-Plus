@@ -468,12 +468,13 @@ class CMLMC(VAE):
             fullmask_scores, fullmask_tokens = decode_one_step(masked_inp)
             enforce_scaffold_token(scaffold, fullmask_tokens)
             for i in range(z.size(0)):
-                fullmask_tokens[i, l_pred[i]-1] = torch.tensor([NOP_INDEX], dtype=torch.long).to(self.device)
+                fullmask_tokens[i, l_pred[i]:] = torch.tensor([NOP_INDEX], dtype=torch.long).to(self.device)
             #all_decoded.append(fullmask_tokens)
 
             for _ in range(10):
                 masked_inp = self.inp_emb(fullmask_tokens)
                 for i in range(z.size(0)):
+                    masked_inp[i, l_pred[i]-1] = torch.tensor([NOP_INDEX], dtype=torch.long).to(self.device)
                     masked_inp[i,l_pred[i]:] = self.inp_emb(torch.tensor([PAD_INDEX]*(self.max_len - l_pred[i]), dtype=torch.long).to(self.device))
                     #masked_inp[i,l_pred[i]-1] = self.inp_emb(torch.tensor([NOP_INDEX], dtype=torch.long).to(self.device))
                     split_val = torch.quantile(fullmask_scores[i,:l_pred[i]], 0.3)
@@ -483,7 +484,7 @@ class CMLMC(VAE):
                 fullmask_scores, fullmask_tokens = decode_one_step(masked_inp)
                 enforce_scaffold_token(scaffold, fullmask_tokens)
                 for i in range(z.size(0)):
-                    fullmask_tokens[i, l_pred[i]-1] = torch.tensor([NOP_INDEX], dtype=torch.long).to(self.device)
+                    fullmask_tokens[i, l_pred[i]:] = torch.tensor([NOP_INDEX], dtype=torch.long).to(self.device)
                 #all_decoded.append(fullmask_tokens)
 
             #return fullmask_tokens
