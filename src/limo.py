@@ -189,6 +189,8 @@ class LIMO:
             ])
         trainer.fit(prop_model, dm)
 
+        prop_model = prop_model.to(device)
+        prop_model.eval()
         print(f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}:{exp_suffix}:{prop}: property predictor trained, correlation of r = {linregress(prop_model(x[:1000].to(device)).detach().cpu().numpy().flatten(), y[:1000].detach().cpu().numpy().flatten()).rvalue}', 
               flush=True, 
               file=open(f"temp/log_file_{self.tokenizer}_{self.model_type}_{self.exp_name}.txt", "a+"))
