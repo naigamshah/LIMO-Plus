@@ -119,7 +119,7 @@ class VAE(pl.LightningModule):
         optimizer = optim.Adam(self.parameters(), lr=0.0001)
         scheduler = CosineAnnealingLRWarmup(
             optimizer, T_max=50000, T_warmup=100, min_mult=0.01)
-        return [optimizer], [{"scheduler": scheduler, "interval": "step"}]
+        return [optimizer]#, [{"scheduler": scheduler, "interval": "step"}]
 
     
     def loss_function(self, pred, target, mu, log_var, batch_size, p):
