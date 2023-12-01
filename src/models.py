@@ -33,6 +33,10 @@ def CosineAnnealingLRWarmup(optimizer, T_max, T_warmup, min_mult=0.01):
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, _decay_func)
     return scheduler
 
+def DummyLRWarmup(optimizer, T_max, T_warmup, min_mult=0.01):
+    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lambda x: 1)
+    return scheduler
+
 class VAE(pl.LightningModule):
     def __init__(
             self, 
@@ -117,9 +121,11 @@ class VAE(pl.LightningModule):
     
     def configure_optimizers(self):
         optimizer = optim.Adam(self.parameters(), lr=0.0001)
-        scheduler = CosineAnnealingLRWarmup(
+        # scheduler = CosineAnnealingLRWarmup(
+        #     optimizer, T_max=50000, T_warmup=100, min_mult=0.01)
+        scheduler = DummyLRWarmup(
             optimizer, T_max=50000, T_warmup=100, min_mult=0.01)
-        return [optimizer]#, [{"scheduler": scheduler, "interval": "step"}]
+        return [optimizer], [{"scheduler": scheduler, "interval": "step"}]
 
     
     def loss_function(self, pred, target, mu, log_var, batch_size, p):
