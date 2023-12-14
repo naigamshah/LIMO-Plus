@@ -121,10 +121,10 @@ class VAE(pl.LightningModule):
     
     def configure_optimizers(self):
         optimizer = optim.Adam(self.parameters(), lr=0.0001)
-        # scheduler = CosineAnnealingLRWarmup(
-        #     optimizer, T_max=50000, T_warmup=100, min_mult=0.01)
-        scheduler = DummyLRWarmup(
+        scheduler = CosineAnnealingLRWarmup(
             optimizer, T_max=50000, T_warmup=100, min_mult=0.01)
+        # scheduler = DummyLRWarmup(
+        #     optimizer, T_max=50000, T_warmup=100, min_mult=0.01)
         return [optimizer], [{"scheduler": scheduler, "interval": "step"}]
 
     
@@ -144,7 +144,7 @@ class VAE(pl.LightningModule):
     
     def training_step(self, train_batch, batch_idx):
         out, z, mu, log_var = self(**train_batch)
-        p = 0.1 #* (min((self.global_step % 1000) / 1000, 0.5)*2) # 0.01 #min(self.current_epoch/10, 0.1)  #0.1
+        p = 0.1 * (min((self.global_step % 1000) / 1000, 0.5)*2) # 0.01 #min(self.current_epoch/10, 0.1)  #0.1
         loss, nll, kld = self.loss_function(out.reshape((-1, self.vocab_len)), train_batch["x"].flatten(), mu, log_var, len(train_batch["x"]), p)
         if self.use_z_surrogate:
             if self.independent_surrogate:
@@ -161,7 +161,7 @@ class VAE(pl.LightningModule):
         
     def validation_step(self, val_batch, batch_idx):
         out, z, mu, log_var = self(**val_batch)
-        p = 0.1 #* (min((self.global_step % 1000) / 1000, 0.5)*2) # 0.01 #min(self.current_epoch/10, 0.1)  #0.1
+        p = 0.1 * (min((self.global_step % 1000) / 1000, 0.5)*2) # 0.01 #min(self.current_epoch/10, 0.1)  #0.1
         loss, nll, kld = self.loss_function(out.reshape((-1, self.vocab_len)), val_batch["x"].flatten(), mu, log_var, len(val_batch["x"]), p)
         if self.use_z_surrogate:    
             if self.independent_surrogate:
