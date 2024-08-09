@@ -85,7 +85,7 @@ def gs_tokenize_zinc():
 
 def sf_tokenize_zinc():
     tokenizer = SelfiesTokenizer()
-    smiles = [line.split()[0] for line in open("zinc250k.smi", 'r')]
+    smiles = [line.split()[0] for line in open("tokens/zinc250k.smi", 'r')]
     # pool = multiprocessing.Pool(processes=8)
     # parallelized = pool.map(tokenizer.encoder, smiles)
     # selfies = [x for x in tqdm(parallelized) if x]
@@ -130,7 +130,7 @@ def choose_tokenizer(tokenizer_type: str) -> BaseTokenizer:
 if __name__ == "__main__":
     #extract_groups_from_zinc()
     #gs_tokenize_zinc()
-    #sf_tokenize_zinc()
+    sf_tokenize_zinc()
     #um_gs_tokenize_zinc()
     #use_gs_tokenize_zinc()
-    sf_tokenize_moses()
+    #sf_tokenize_moses()

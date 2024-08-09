@@ -12,10 +12,10 @@ f'''
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: vthumuluri-job-limoorig2
-  namespace: ai-md
+  name: n7shah-job-limoorig1
+  namespace: guru-research
   labels:
-    user: vthumuluri
+    user: n7shah
 spec:
   ttlSecondsAfterFinished: 36000 # 100 minute to delete completed jobs
   template:
@@ -49,18 +49,18 @@ spec:
             memory: "8Gi"
             nvidia.com/gpu: 1
             ephemeral-storage: 10Gi
-        volumeMounts:
-        - name: dshm
-          mountPath: /dev/shm 
-        - name: vthumuluri-slow-vol-aimd
-          mountPath: /home
-      volumes:
-      - name: dshm 
-        emptyDir:
-          medium: Memory
-      - name: vthumuluri-slow-vol-aimd
-        persistentVolumeClaim:
-          claimName: vthumuluri-slow-vol-aimd
+        # volumeMounts:
+        # - name: dshm
+        #   mountPath: /dev/shm 
+        # - name: vthumuluri-slow-vol-aimd
+        #   mountPath: /home
+      # volumes:
+      # - name: dshm 
+      #   emptyDir:
+      #     medium: Memory
+      # - name: vthumuluri-slow-vol-aimd
+      #   persistentVolumeClaim:
+      #     claimName: vthumuluri-slow-vol-aimd
       restartPolicy: Never
   backoffLimit: 0
 '''

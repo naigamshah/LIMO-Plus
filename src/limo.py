@@ -110,6 +110,7 @@ class LIMO:
             ])
         print('Training..')
         trainer.fit(model, dm)
+        print("Training done..")
         if not os.path.exists(f"{GEN_MODELS_SAVE}"):
             os.makedirs(f"{GEN_MODELS_SAVE}")
         if trainer.state.status == "finished":
